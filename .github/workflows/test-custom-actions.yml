@@ -1,0 +1,64 @@
+name: Test Changed Actions & Workflows
+
+on:
+  push:
+    branches: [master, dev]
+    paths:
+      - '.github/actions/**'
+      - '.github/workflows/**'
+  pull_request:
+    branches: [master, dev]
+    paths:
+      - '.github/actions/**'
+      - '.github/workflows/**'
+
+jobs:
+  test-changes:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Find changed action and workflow files
+        id: changes
+        uses: ./.github/actions/changed-files
+        with:
+          patterns: |
+            .github/actions/**/action.yml
+            .github/workflows/*.yml
+
+      - name: Lint changed workflows
+        if: ${{ steps.changes.outputs.files != '' }}
+        run: |
+          echo "🔍 Linting changed workflow files..."
+          # install actionlint
+          curl -sSL https://github.com/rhysd/actionlint/releases/latest/download/actionlint_linux_amd64.tar.gz \
+            | tar -xz && sudo mv actionlint /usr/local/bin/
+          for wf in ${{ steps.changes.outputs.files }}; do
+            if [[ $wf == .github/workflows/*.yml ]]; then
+              echo "  • $wf"
+              actionlint -f github-actions "$wf"
+            fi
+          done
+
+      - name: Test changed actions
+        if: ${{ steps.changes.outputs.files != '' }}
+        run: |
+          echo "🧪 Testing changed custom actions..."
+          for file in ${{ steps.changes.outputs.files }}; do
+            if [[ $file == .github/actions/*/action.yml ]]; then
+              dir=$(dirname "$file")
+              echo "  • Processing action in $dir"
+              if grep -qE "runs:\s*using:\s*composite" "$file"; then
+                echo "    – Composite action detected, please test locally with 'act'"
+              elif grep -qE "runs:\s*using:\s*node" "$file"; then
+                echo "    – JavaScript action detected, running Jest tests"
+                cd "$dir"
+                npm install --silent
+                npm test
+                cd -
+              else
+                echo "    – Unknown action type, skipping"
+              fi
+            fi
+          done 

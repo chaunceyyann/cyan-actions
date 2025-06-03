@@ -21,7 +21,7 @@ To reuse a workflow from this repository, use the `uses` keyword in your workflo
 name: Use Shared Workflow
 on:
   push:
-    branches: [ main ]
+    branches: [ master ]
 jobs:
   call-shared-workflow:
     uses: chaunceyyann/cyan-actions/.github/workflows/shared-workflow.yml@master
@@ -40,7 +40,7 @@ To use a custom action from this repository, reference its path and version in y
 name: Use Custom Action
 on:
   push:
-    branches: [ main ]
+    branches: [ master ]
 jobs:
   use-custom-action:
     runs-on: ubuntu-latest
@@ -52,6 +52,19 @@ jobs:
 ```
 
 > **Note**: Update `shared-workflow.yml` and `path/to/custom-action` to the actual file/action paths, and adjust inputs/secrets as needed.
+
+## Testing Custom Actions
+
+This repository includes a workflow to automatically test changed workflows and actions. It triggers on:
+
+- Pull requests opened against `dev` (feature → dev)
+- Pull requests opened against `master` (dev → master)
+- Pushes to `dev` (post-merge of feature)
+- Pushes to `master` (post-merge of release)
+
+The tests run whenever files under `.github/actions/**` or `.github/workflows/**` are modified.
+
+See [.github/workflows/test-custom-actions.yml](.github/workflows/test-custom-actions.yml) for details.
 
 ## Status
 

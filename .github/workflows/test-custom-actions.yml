@@ -35,8 +35,12 @@ jobs:
         run: |
           echo "Changed files detected by the action:"
           echo "${{ steps.changes.outputs.files }}"
-          echo "Length of files output: ${#{{ steps.changes.outputs.files }}}"
-          echo "Checking if output is empty or contains unexpected files."
+          echo "Checking if files output is empty or contains unexpected files."
+          if [ -z "${{ steps.changes.outputs.files }}" ]; then
+            echo "Files output is empty."
+          else
+            echo "Files output is not empty. Contents listed above."
+          fi
           echo "Filtering to ensure only relevant files are processed."
 
       - name: Lint changed workflows

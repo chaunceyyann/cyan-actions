@@ -30,6 +30,13 @@ jobs:
             .github/actions/**/action.yml
             .github/workflows/*.yml
 
+      - name: Debug changed files output
+        if: ${{ steps.changes.outputs.files != '' }}
+        run: |
+          echo "Changed files detected by the action:"
+          echo "${{ steps.changes.outputs.files }}"
+          echo "Filtering to ensure only relevant files are processed."
+
       - name: Lint changed workflows
         if: ${{ steps.changes.outputs.files != '' }}
         run: |
@@ -37,17 +44,23 @@ jobs:
           # install actionlint
           curl -sSL https://github.com/rhysd/actionlint/releases/latest/download/actionlint_linux_amd64.tar.gz \
             | tar -xz && sudo mv actionlint /usr/local/bin/
+          FOUND_WORKFLOW=0
           for wf in ${{ steps.changes.outputs.files }}; do
             if [[ $wf == .github/workflows/*.yml ]]; then
               echo "  • $wf"
               actionlint -f github-actions "$wf"
+              FOUND_WORKFLOW=1
             fi
           done
+          if [ $FOUND_WORKFLOW -eq 0 ]; then
+            echo "No workflow files found in the changed files list."
+          fi
 
       - name: Test changed actions
         if: ${{ steps.changes.outputs.files != '' }}
         run: |
           echo "🧪 Testing changed custom actions..."
+          FOUND_ACTION=0
           for file in ${{ steps.changes.outputs.files }}; do
             if [[ $file == .github/actions/*/action.yml ]]; then
               dir=$(dirname "$file")
@@ -63,5 +76,9 @@ jobs:
               else
                 echo "    – Unknown action type, skipping"
               fi
+              FOUND_ACTION=1
             fi
-          done 
+          done
+          if [ $FOUND_ACTION -eq 0 ]; then
+            echo "No action files found in the changed files list."
+          fi 

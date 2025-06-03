@@ -11,7 +11,7 @@ on:
       run-integration-tests:
         description: "Whether to run integration tests"
         required: false
-        default: "true"
+        default: true
         type: boolean
 
 jobs:

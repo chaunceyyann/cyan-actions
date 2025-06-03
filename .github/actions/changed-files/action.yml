@@ -1,0 +1,33 @@
+name: "Changed Files"
+description: "Get a list of files changed in a PR or push, optionally filtered by a pattern"
+inputs:
+  pattern:
+    description: "Regex pattern to filter changed files"
+    required: false
+    default: ""
+outputs:
+  files:
+    description: "Space-separated list of changed files"
+runs:
+  using: "composite"
+  steps:
+    - name: Get changed files
+      id: get-changed
+      shell: bash
+      run: |
+        if [[ "$GITHUB_EVENT_NAME" == "pull_request" ]]; then
+          BASE_REF="${{ github.event.pull_request.base.ref }}"
+          git fetch origin "$BASE_REF"
+          FILES=$(git diff --name-only "origin/$BASE_REF...HEAD")
+        else
+          FILES=$(git diff --name-only ${{ github.event.before }} ${{ github.sha }})
+        fi
+
+        if [[ -n "${{ inputs.pattern }}" ]]; then
+          FILES=$(echo "$FILES" | grep -E "${{ inputs.pattern }}" || true)
+        fi
+
+        # Output as space-separated list
+        FILES=$(echo "$FILES" | xargs)
+        echo "Changed files: $FILES"
+        echo "files=$FILES" >> $GITHUB_OUTPUT 

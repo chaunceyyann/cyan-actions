@@ -1,0 +1,74 @@
+name: Python CI
+
+on:
+  workflow_call:
+    inputs:
+      python-version:
+        description: "Python version to use"
+        required: false
+        default: "3.11"
+        type: string
+      run-integration-tests:
+        description: "Whether to run integration tests"
+        required: false
+        default: "true"
+        type: boolean
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ inputs.python-version }}
+
+      - name: Install lint dependencies
+        run: |
+          pip install flake8
+
+      - name: Run flake8
+        run: |
+          flake8 .
+
+  unit-test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ inputs.python-version }}
+
+      - name: Install test dependencies
+        run: |
+          pip install pytest
+
+      - name: Run unit tests
+        run: |
+          pytest tests/unit
+
+  integration-test:
+    if: ${{ inputs.run-integration-tests == 'true' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ inputs.python-version }}
+
+      - name: Install test dependencies
+        run: |
+          pip install pytest
+
+      - name: Run integration tests
+        run: |
+          pytest tests/integration 

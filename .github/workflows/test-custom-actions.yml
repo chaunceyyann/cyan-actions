@@ -52,7 +52,7 @@ jobs:
             | tar -xz && sudo mv actionlint /usr/local/bin/
           FOUND_WORKFLOW=0
           for wf in ${{ steps.changes.outputs.files }}; do
-            if [[ $wf == .github/workflows/*.yml ]]; then
+            if [[ $wf =~ ^\.github/workflows/.*\.yml$ ]]; then
               echo "  • $wf"
               actionlint -f github-actions "$wf"
               FOUND_WORKFLOW=1

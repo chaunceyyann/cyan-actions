@@ -18,6 +18,9 @@ jobs:
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
+        with:
+          # fetch full history and all branches so merge-base works
+          fetch-depth: 0
 
       - name: Find changed action and workflow files
         id: changes

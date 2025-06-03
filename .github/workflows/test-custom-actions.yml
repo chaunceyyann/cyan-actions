@@ -31,10 +31,12 @@ jobs:
             .github/workflows/*.yml
 
       - name: Debug changed files output
-        if: ${{ steps.changes.outputs.files != '' }}
+        if: true  # Force debug output to always run
         run: |
           echo "Changed files detected by the action:"
           echo "${{ steps.changes.outputs.files }}"
+          echo "Length of files output: ${#{{ steps.changes.outputs.files }}}"
+          echo "Checking if output is empty or contains unexpected files."
           echo "Filtering to ensure only relevant files are processed."
 
       - name: Lint changed workflows

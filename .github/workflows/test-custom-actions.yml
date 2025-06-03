@@ -23,7 +23,7 @@ jobs:
         id: changes
         uses: ./.github/actions/changed-files
         with:
-          patterns: |
+          pattern: |
             .github/actions/**/action.yml
             .github/workflows/*.yml
 

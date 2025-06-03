@@ -27,8 +27,8 @@ jobs:
         uses: ./.github/actions/changed-files
         with:
           pattern: |
-            .github/actions/**/action.yml
-            .github/workflows/*.yml
+            ^\.github/actions/.*/.*
+            ^\.github/workflows/.*\.yml$
 
       - name: Debug changed files output
         if: true  # Force debug output to always run
@@ -67,24 +67,28 @@ jobs:
         run: |
           echo "🧪 Testing changed custom actions..."
           FOUND_ACTION=0
+          PROCESSED_DIRS=""
           for file in ${{ steps.changes.outputs.files }}; do
-            if [[ $file == .github/actions/*/action.yml ]]; then
-              dir=$(dirname "$file")
-              echo "  • Processing action in $dir"
-              if grep -qE "runs:\s*using:\s*composite" "$file"; then
-                echo "    – Composite action detected, please test locally with 'act'"
-              elif grep -qE "runs:\s*using:\s*node" "$file"; then
-                echo "    – JavaScript action detected, running Jest tests"
-                cd "$dir"
-                npm install --silent
-                npm test
-                cd -
-              else
-                echo "    – Unknown action type, skipping"
+            if [[ $file =~ ^\.github/actions/([^/]+)/ ]]; then
+              dir=".github/actions/${BASH_REMATCH[1]}"
+              if [[ ! $PROCESSED_DIRS =~ $dir ]] && [ -f "$dir/action.yml" ]; then
+                dir=$(dirname "$file")
+                echo "  • Processing action in $dir"
+                if grep -qE "runs:\s*using:\s*composite" "$file"; then
+                  echo "    – Composite action detected, please test locally with 'act'"
+                elif grep -qE "runs:\s*using:\s*node" "$file"; then
+                  echo "    – JavaScript action detected, running Jest tests"
+                  cd "$dir"
+                  npm install --silent
+                  npm test
+                  cd -
+                else
+                  echo "    – Unknown action type, skipping"
+                fi
+                FOUND_ACTION=1
+                PROCESSED_DIRS="$PROCESSED_DIRS $dir"
               fi
-              FOUND_ACTION=1
-            fi
-          done
-          if [ $FOUND_ACTION -eq 0 ]; then
-            echo "No action files found in the changed files list."
-          fi 
+            done
+            if [ $FOUND_ACTION -eq 0 ]; then
+              echo "No action files found in the changed files list."
+            fi 

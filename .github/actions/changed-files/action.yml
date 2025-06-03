@@ -29,8 +29,7 @@ runs:
         
         # Filter changed files based on the provided pattern
         FILTERED_FILES=""
-        IFS=$'\n'
-        for PATTERN in ${{ inputs.pattern }}; do
+        echo "${{ inputs.pattern }}" | while IFS= read -r PATTERN || [ -n "$PATTERN" ]; do
           if [ -n "$PATTERN" ]; then
             echo "Applying pattern: $PATTERN"
             MATCHED=$(echo "$CHANGED_FILES" | grep -E "$PATTERN" || echo "")
@@ -39,7 +38,6 @@ runs:
             fi
           fi
         done
-        unset IFS
         
         # Remove duplicates and empty lines, then set output
         FILTERED_FILES=$(echo -e "$FILTERED_FILES" | sort | uniq | grep -v "^$")

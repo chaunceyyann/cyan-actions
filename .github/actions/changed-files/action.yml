@@ -20,7 +20,7 @@ runs:
           echo "This is a pull request. Fetching target branch for comparison."
           echo "Debug: Current branches and refs available:"
           git branch -a
-          echo "Debug: Attempting to fetch base ref ${{ github.base_ref }}"
+          echo "Debug: Attempting to fetch base ref dev"
           git fetch origin $GITHUB_BASE_REF --depth=1
           if [ $? -ne 0 ]; then
             echo "Error: Fetch failed for $GITHUB_BASE_REF. Attempting unshallow fetch."
@@ -39,12 +39,20 @@ runs:
         elif [[ "$GITHUB_EVENT_NAME" == "push" ]]; then
           echo "This is a push event. Listing files in the latest commit."
           CHANGED_FILES=$(git show --name-only --pretty="" HEAD)
+        else
+          echo "Unknown event type: $GITHUB_EVENT_NAME"
+          CHANGED_FILES=""
+        fi
 
-        if [[ -n "${{ inputs.pattern }}" ]]; then
-          FILES=$(echo "$FILES" | grep -E "${{ inputs.pattern }}" || true)
+        # Apply pattern filtering
+        PATTERN="${{ inputs.pattern }}"
+        if [[ -n "$PATTERN" ]]; then
+          FILTERED_FILES=$(echo "$CHANGED_FILES" | grep -E "$PATTERN" || true)
+        else
+          FILTERED_FILES="$CHANGED_FILES"
         fi
 
         # Output as space-separated list
-        FILES=$(echo "$FILES" | xargs)
+        FILES=$(echo "$FILTERED_FILES" | xargs)
         echo "Changed files: $FILES"
         echo "files=$FILES" >> $GITHUB_OUTPUT 

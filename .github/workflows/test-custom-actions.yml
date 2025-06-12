@@ -21,9 +21,14 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
         with:
+          # fetch full history so merge-base can be computed
           fetch-depth: 0
-          ref: ${{ github.head_ref }}
-          fetch-tags: true
+
+      - name: Fetch PR base branch
+        if: ${{ github.event_name == 'pull_request' }}
+        run: |
+          echo "Fetching base branch '${{ github.base_ref }}' for merge-base..."
+          git fetch origin ${{ github.base_ref }} --depth=1
 
       - name: Find changed action and workflow files
         id: changes

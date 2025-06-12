@@ -8,7 +8,7 @@ inputs:
 outputs:
   files:
     description: "Space-separated list of changed files"
-    values: ${{ steps.get-changed.outputs.files }}
+    value: ${{ steps.get-changed.outputs.files }}
 runs:
   using: "composite"
   steps:

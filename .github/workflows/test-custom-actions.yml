@@ -45,8 +45,12 @@ jobs:
       - uses: actions/checkout@v4
       - name: Install actionlint
         run: |
+          # install to $HOME/go/bin
           GO111MODULE=on go install github.com/rhysd/actionlint/cmd/actionlint@latest
+          # add to PATH for subsequent steps
           echo "$HOME/go/bin" >> $GITHUB_PATH
+          # also add to PATH for this step so we can test it now
+          export PATH="$HOME/go/bin:$PATH"
           actionlint --version
       - name: Lint changed workflows
         run: |

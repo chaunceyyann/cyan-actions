@@ -66,4 +66,9 @@ runs:
         # Output as newline-separated list (not space-separated)
         FILES="$FILTERED_FILES"
         echo "Changed files: $FILES"
-        echo "files=$FILES" >> $GITHUB_OUTPUT 
+        # Use delimiter format for multi-line output
+        {
+          echo "files<<EOF"
+          echo "$FILES"
+          echo "EOF"
+        } >> $GITHUB_OUTPUT 

@@ -1,4 +1,4 @@
-name: Test Changed Actions & Workflows
+name: Integration Test for changed-files Action and python-ci Workflow
 
 on:
   push:
@@ -13,13 +13,14 @@ on:
       - '.github/workflows/**'
 
 jobs:
-  test-changes:
+  find-changes:
     runs-on: ubuntu-latest
+    outputs:
+      files: ${{ steps.changes.outputs.files }}
     steps:
-      - name: Check out repository
+      - name: Checkout
         uses: actions/checkout@v4
         with:
-          # fetch full history and all branches so merge-base works
           fetch-depth: 0
 
       - name: Find changed action and workflow files
@@ -30,65 +31,48 @@ jobs:
             ^\.github/actions/.*/.*
             ^\.github/workflows/.*\.yml$
 
-      - name: Debug changed files output
-        if: true  # Force debug output to always run
+      - name: Show changed files
         run: |
-          echo "Changed files detected by the action:"
           echo "${{ steps.changes.outputs.files }}"
-          echo "Checking if files output is empty or contains unexpected files."
-          if [ -z "${{ steps.changes.outputs.files }}" ]; then
-            echo "Files output is empty."
-          else
-            echo "Files output is not empty. Contents listed above."
-          fi
-          echo "Filtering to ensure only relevant files are processed."
 
-      - name: Lint changed workflows
-        if: ${{ steps.changes.outputs.files != '' }}
+  lint-workflows:
+    needs: find-changes
+    runs-on: ubuntu-latest
+    if: contains(needs.find-changes.outputs.files, '.github/workflows/')
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install actionlint
         run: |
-          echo "🔍 Linting changed workflow files..."
-          # install actionlint
           curl -sSL https://github.com/rhysd/actionlint/releases/latest/download/actionlint_linux_amd64.tar.gz \
             | tar -xz && sudo mv actionlint /usr/local/bin/
-          FOUND_WORKFLOW=0
-          for wf in ${{ steps.changes.outputs.files }}; do
+      - name: Lint changed workflows
+        run: |
+          for wf in ${{ needs.find-changes.outputs.files }}; do
             if [[ $wf =~ ^\.github/workflows/.*\.yml$ ]]; then
-              echo "  • $wf"
+              echo "Linting $wf"
               actionlint -f github-actions "$wf"
-              FOUND_WORKFLOW=1
             fi
           done
-          if [ $FOUND_WORKFLOW -eq 0 ]; then
-            echo "No workflow files found in the changed files list."
-          fi
 
-      - name: Test changed actions
-        if: ${{ steps.changes.outputs.files != '' }}
-        run: |
-          echo "🧪 Testing changed custom actions..."
-          FOUND_ACTION=0
-          PROCESSED_DIRS=""
-          for file in ${{ steps.changes.outputs.files }}; do
-            if [[ $file =~ ^\.github/actions/([^/]+)/ ]]; then
-              dir=".github/actions/${BASH_REMATCH[1]}"
-              if [[ ! $PROCESSED_DIRS =~ $dir ]] && [ -f "$dir/action.yml" ]; then
-                dir=$(dirname "$file")
-                echo "  • Processing action in $dir"
-                if grep -qE "runs:\s*using:\s*composite" "$file"; then
-                  echo "    – Composite action detected, please test locally with 'act'"
-                elif grep -qE "runs:\s*using:\s*node" "$file"; then
-                  echo "    – JavaScript action detected, running Jest tests"
-                  cd "$dir"
-                  npm install --silent
-                  npm test
-                  cd -
-                else
-                  echo "    – Unknown action type, skipping"
-                fi
-                FOUND_ACTION=1
-                PROCESSED_DIRS="$PROCESSED_DIRS $dir"
-              fi
-            done
-            if [ $FOUND_ACTION -eq 0 ]; then
-              echo "No action files found in the changed files list."
-            fi 
+  test-changed-files-action:
+    needs: find-changes
+    runs-on: ubuntu-latest
+    if: contains(needs.find-changes.outputs.files, '.github/actions/changed-files/')
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run changed-files action as integration test
+        uses: ./.github/actions/changed-files
+        with:
+          pattern: '^README\.md$'
+
+  test-python-ci-workflow:
+    needs: find-changes
+    runs-on: ubuntu-latest
+    if: contains(needs.find-changes.outputs.files, '.github/workflows/python-ci.yml')
+    steps:
+      - uses: actions/checkout@v4
+      - name: Call python-ci workflow as a test
+        uses: ./.github/workflows/python-ci.yml
+        with:
+          python-version: '3.11'
+          run-integration-tests: false 

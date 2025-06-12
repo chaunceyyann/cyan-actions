@@ -1,59 +1,34 @@
-name: 'Changed Files'
-description: 'Get a list of changed files matching a pattern'
+name: "Changed Files"
+description: "Get a list of files changed in a PR or push, optionally filtered by a pattern"
 inputs:
   pattern:
-    description: 'Pattern to match changed files (newline-separated for multiple patterns)'
-    required: true
+    description: "Regex pattern to filter changed files"
+    required: false
+    default: ""
 outputs:
   files:
-    description: 'List of changed files matching the pattern'
-    value: ${{ steps.process.outputs.files }}
+    description: "Space-separated list of changed files"
+    values: ${{ steps.get-changed.outputs.files }}
 runs:
-  using: 'composite'
+  using: "composite"
   steps:
-    - id: process
+    - name: Get changed files
+      id: get-changed
+      shell: bash
       run: |
-        # Get changed files based on event type
         if [[ "$GITHUB_EVENT_NAME" == "pull_request" ]]; then
-          echo "This is a pull request. Fetching target branch for comparison."
-          git fetch origin $GITHUB_BASE_REF --depth=1
-          echo "Changed files since merge base with $GITHUB_BASE_REF:"
-          CHANGED_FILES=$(git diff --name-only origin/$GITHUB_BASE_REF HEAD)
-          if [ $? -ne 0 ]; then
-            echo "Error: Failed to get changed files with git diff. Falling back to empty list."
-            CHANGED_FILES=""
-          fi
-        elif [[ "$GITHUB_EVENT_NAME" == "push" ]]; then
-          echo "This is a push event. Listing files in the latest commit."
-          CHANGED_FILES=$(git show --name-only --pretty="" HEAD)
-          if [ $? -ne 0 ]; then
-            echo "Error: Failed to get changed files with git show. Falling back to empty list."
-            CHANGED_FILES=""
-          fi
+          BASE_REF="${{ github.event.pull_request.base.ref }}"
+          git fetch origin "$BASE_REF"
+          FILES=$(git diff --name-only "origin/$BASE_REF...HEAD")
         else
-          echo "Unknown event type: $GITHUB_EVENT_NAME"
-          CHANGED_FILES=""
+          FILES=$(git diff --name-only ${{ github.event.before }} ${{ github.sha }})
         fi
-        
-        # Filter changed files based on the provided pattern
-        FILTERED_FILES=""
-        echo "${{ inputs.pattern }}" | while IFS= read -r PATTERN || [ -n "$PATTERN" ]; do
-          if [ -n "$PATTERN" ]; then
-            echo "Applying pattern: $PATTERN"
-            MATCHED=$(echo "$CHANGED_FILES" | grep -E "$PATTERN" 2>/dev/null || echo "")
-            if [ $? -ne 0 ]; then
-              echo "Warning: grep failed for pattern '$PATTERN'. Skipping this pattern."
-              MATCHED=""
-            fi
-            if [ -n "$MATCHED" ]; then
-              FILTERED_FILES="$FILTERED_FILES$MATCHED\n"
-            fi
-          fi
-        done
-        
-        # Remove duplicates and empty lines, then set output
-        FILTERED_FILES=$(echo -e "$FILTERED_FILES" | sort | uniq | grep -v "^$")
-        echo "Filtered changed files:"
-        echo "$FILTERED_FILES"
-        echo "files=$FILTERED_FILES" >> $GITHUB_OUTPUT
-      shell: bash 
+
+        if [[ -n "${{ inputs.pattern }}" ]]; then
+          FILES=$(echo "$FILES" | grep -E "${{ inputs.pattern }}" || true)
+        fi
+
+        # Output as space-separated list
+        FILES=$(echo "$FILES" | xargs)
+        echo "Changed files: $FILES"
+        echo "files=$FILES" >> $GITHUB_OUTPUT 

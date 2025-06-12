@@ -18,8 +18,17 @@ jobs:
     outputs:
       files: ${{ steps.changes.outputs.files }}
     steps:
-      - name: Checkout
+      - name: Checkout with full history
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Fetch PR base branch with full history
+        if: ${{ github.event_name == 'pull_request' }}
+        run: |
+          echo "Fetching base branch '${{ github.base_ref }}' with full history for merge-base..."
+          git fetch origin ${{ github.base_ref }} --unshallow || git fetch origin ${{ github.base_ref }} --depth=1
+          git fetch origin --unshallow || true  # Attempt to unshallow the entire repo if possible
 
       - name: Find changed action and workflow files
         id: changes

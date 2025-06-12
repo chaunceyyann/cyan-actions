@@ -17,12 +17,28 @@ runs:
       shell: bash
       run: |
         if [[ "$GITHUB_EVENT_NAME" == "pull_request" ]]; then
-          BASE_REF="${{ github.event.pull_request.base.ref }}"
-          git fetch origin "$BASE_REF"
-          FILES=$(git diff --name-only "origin/$BASE_REF...HEAD")
-        else
-          FILES=$(git diff --name-only ${{ github.event.before }} ${{ github.sha }})
-        fi
+          echo "This is a pull request. Fetching target branch for comparison."
+          echo "Debug: Current branches and refs available:"
+          git branch -a
+          echo "Debug: Attempting to fetch base ref ${{ github.base_ref }}"
+          git fetch origin $GITHUB_BASE_REF --depth=1
+          if [ $? -ne 0 ]; then
+            echo "Error: Fetch failed for $GITHUB_BASE_REF. Attempting unshallow fetch."
+            git fetch origin $GITHUB_BASE_REF --unshallow || git fetch origin $GITHUB_BASE_REF
+          fi
+          echo "Debug: Finding merge base between origin/$GITHUB_BASE_REF and HEAD"
+          MERGE_BASE=$(git merge-base origin/$GITHUB_BASE_REF HEAD || echo "")
+          if [ -z "$MERGE_BASE" ]; then
+            echo "Error: No merge base found between origin/$GITHUB_BASE_REF and HEAD. Falling back to empty list."
+            CHANGED_FILES=""
+          else
+            echo "Debug: Merge base found at $MERGE_BASE"
+            echo "Changed files since merge base with $GITHUB_BASE_REF:"
+            CHANGED_FILES=$(git diff --name-only $MERGE_BASE HEAD)
+          fi
+        elif [[ "$GITHUB_EVENT_NAME" == "push" ]]; then
+          echo "This is a push event. Listing files in the latest commit."
+          CHANGED_FILES=$(git show --name-only --pretty="" HEAD)
 
         if [[ -n "${{ inputs.pattern }}" ]]; then
           FILES=$(echo "$FILES" | grep -E "${{ inputs.pattern }}" || true)

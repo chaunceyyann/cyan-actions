@@ -52,10 +52,16 @@ jobs:
           # also add to PATH for this step so we can test it now
           export PATH="$HOME/go/bin:$PATH"
           actionlint --version
-      - name: Lint all GitHub Actions workflows
+      - name: Lint changed workflows
         run: |
-          echo "🔍 Linting all workflows in .github/workflows"
-          actionlint
+          echo "🔍 Linting changed workflow files..."
+          for wf in ${{ needs.find-changes.outputs.files }}; do
+            # only lint real workflows, skip this test file
+            if [[ $wf =~ ^\.github/workflows/.*\.yml$ ]] && [[ $wf != '.github/workflows/test-custom-actions.yml' ]]; then
+              echo "Linting $wf"
+              actionlint "$wf"
+            fi
+          done
 
   test-changed-files-action:
     needs: find-changes

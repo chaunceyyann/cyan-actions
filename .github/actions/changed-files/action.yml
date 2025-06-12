@@ -47,12 +47,23 @@ runs:
         # Apply pattern filtering
         PATTERN="${{ inputs.pattern }}"
         if [[ -n "$PATTERN" ]]; then
-          FILTERED_FILES=$(echo "$CHANGED_FILES" | grep -E "$PATTERN" || true)
+          FILTERED_FILES=""
+          echo "${{ inputs.pattern }}" | while IFS= read -r SINGLE_PATTERN || [ -n "$SINGLE_PATTERN" ]; do
+            if [ -n "$SINGLE_PATTERN" ]; then
+              echo "Applying pattern: $SINGLE_PATTERN"
+              MATCHED=$(echo "$CHANGED_FILES" | grep -E "$SINGLE_PATTERN" || true)
+              if [ -n "$MATCHED" ]; then
+                FILTERED_FILES="$FILTERED_FILES$MATCHED"$'\n'
+              fi
+            fi
+          done
+          # Remove duplicates and empty lines
+          FILTERED_FILES=$(echo "$FILTERED_FILES" | sort | uniq | grep -v "^$")
         else
           FILTERED_FILES="$CHANGED_FILES"
         fi
 
-        # Output as space-separated list
-        FILES=$(echo "$FILTERED_FILES" | xargs)
+        # Output as newline-separated list (not space-separated)
+        FILES="$FILTERED_FILES"
         echo "Changed files: $FILES"
         echo "files=$FILES" >> $GITHUB_OUTPUT 

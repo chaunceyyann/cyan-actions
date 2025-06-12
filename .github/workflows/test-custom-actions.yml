@@ -20,15 +20,6 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-        with:
-          # fetch full history so merge-base can be computed
-          fetch-depth: 0
-
-      - name: Fetch PR base branch
-        if: ${{ github.event_name == 'pull_request' }}
-        run: |
-          echo "Fetching base branch '${{ github.base_ref }}' for merge-base..."
-          git fetch origin ${{ github.base_ref }} --depth=1
 
       - name: Find changed action and workflow files
         id: changes
@@ -41,6 +32,31 @@ jobs:
       - name: Show changed files
         run: |
           echo "${{ steps.changes.outputs.files }}"
+
+      - name: Validate changed-files output vs manual git diff
+        run: |
+          echo "Validating changed-files action output against manual git diff"
+          if [ "$GITHUB_EVENT_NAME" = "pull_request" ]; then
+            git fetch origin ${{ github.base_ref }} --depth=1
+            MANUAL=$(git diff --name-only origin/${{ github.base_ref }} HEAD)
+          else
+            MANUAL=$(git show --name-only --pretty="" HEAD)
+          fi
+          # apply the same regex filters
+          PATTERN='^\.github/actions/.*/.*|^\.github/workflows/.*\.yml$'
+          printf "%s\n" "$MANUAL" \
+            | grep -E "$PATTERN" \
+            | sort -u > manual.txt
+          printf "%s\n" "${{ steps.changes.outputs.files }}" \
+            | sort -u > action.txt
+          echo "Manual list:"
+          cat manual.txt
+          echo "Action list:"
+          cat action.txt
+          if ! diff -u manual.txt action.txt; then
+            echo "Mismatch between manual git diff and changed-files action output" >&2
+            exit 1
+          fi
 
   lint-workflows:
     needs: find-changes
@@ -67,17 +83,6 @@ jobs:
               actionlint "$wf"
             fi
           done
-
-  test-changed-files-action:
-    needs: find-changes
-    runs-on: ubuntu-latest
-    if: contains(needs.find-changes.outputs.files, '.github/actions/changed-files/')
-    steps:
-      - uses: actions/checkout@v4
-      - name: Run changed-files action as integration test
-        uses: ./.github/actions/changed-files
-        with:
-          pattern: '^README\.md$'
 
   test-python-ci-workflow:
     needs: find-changes

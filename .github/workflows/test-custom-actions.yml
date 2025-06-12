@@ -46,8 +46,11 @@ jobs:
       - name: Install actionlint
         run: |
           curl -sSL -o actionlint https://github.com/rhysd/actionlint/releases/latest/download/actionlint_linux_amd64
+          file actionlint
+          head -20 actionlint
           chmod +x actionlint
           sudo mv actionlint /usr/local/bin/
+          actionlint --version
       - name: Lint changed workflows
         run: |
           for wf in ${{ needs.find-changes.outputs.files }}; do

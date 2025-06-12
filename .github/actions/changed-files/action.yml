@@ -48,7 +48,7 @@ runs:
         PATTERN="${{ inputs.pattern }}"
         if [[ -n "$PATTERN" ]]; then
           FILTERED_FILES=""
-          echo "${{ inputs.pattern }}" | while IFS= read -r SINGLE_PATTERN || [ -n "$SINGLE_PATTERN" ]; do
+          while IFS= read -r SINGLE_PATTERN || [ -n "$SINGLE_PATTERN" ]; do
             if [ -n "$SINGLE_PATTERN" ]; then
               echo "Applying pattern: $SINGLE_PATTERN"
               MATCHED=$(echo "$CHANGED_FILES" | grep -E "$SINGLE_PATTERN" || true)
@@ -56,9 +56,9 @@ runs:
                 FILTERED_FILES="$FILTERED_FILES$MATCHED"$'\n'
               fi
             fi
-          done
+          done <<< "${{ inputs.pattern }}"
           # Remove duplicates and empty lines
-          FILTERED_FILES=$(echo "$FILTERED_FILES" | sort | uniq | grep -v "^$")
+          FILTERED_FILES=$(echo -e "$FILTERED_FILES" | sort | uniq | grep -v "^$")
         else
           FILTERED_FILES="$CHANGED_FILES"
         fi

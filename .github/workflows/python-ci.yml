@@ -47,7 +47,7 @@ jobs:
 
       - name: Install test dependencies
         run: |
-          pip install pytest
+          pip install pytest pyyaml
 
       - name: Run unit tests
         run: |

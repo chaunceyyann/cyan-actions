@@ -45,11 +45,8 @@ jobs:
       - uses: actions/checkout@v4
       - name: Install actionlint
         run: |
-          curl -sSL -o actionlint https://github.com/rhysd/actionlint/releases/latest/download/actionlint_linux_amd64
-          file actionlint
-          head -20 actionlint
-          chmod +x actionlint
-          sudo mv actionlint /usr/local/bin/
+          GO111MODULE=on go install github.com/rhysd/actionlint/cmd/actionlint@latest
+          echo "$HOME/go/bin" >> $GITHUB_PATH
           actionlint --version
       - name: Lint changed workflows
         run: |

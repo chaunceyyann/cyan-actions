@@ -1,0 +1,53 @@
+# this is a github action that takes in aws-target-account, aws-pipeline-account, aws-region, and the full commit sha to starts a aws codepipeline
+# this pipeline name is aft-customization-plan-only, it takes VENDED_ACCOUNT_ID which is the target account number, and --source-revisions with revisonType=COMMIT_ID
+# we can trigger the run by aws cli so we need to setup the credentional using id and secrets 
+# full commit sha need to be retrived in this pr, and it needs to full sha
+
+name: 'Start AWS CodePipeline Plan-Only'
+description: 'Triggers an AWS CodePipeline named aft-customization-plan-only for a target account with a specific commit SHA.'
+inputs:
+  aws-target-account:
+    description: 'AWS Target Account ID (VENDED_ACCOUNT_ID) for the pipeline'
+    required: true
+  aws-pipeline-account:
+    description: 'AWS Account ID where the pipeline runs (for assuming role)'
+    required: true
+  aws-region:
+    description: 'AWS Region for the pipeline'
+    required: true
+  commit-sha:
+    description: 'Full Commit SHA to use as the source revision (COMMIT_ID)'
+    required: true
+  aws-access-key-id:
+    description: 'AWS Access Key ID for authentication'
+    required: true
+  aws-secret-access-key:
+    description: 'AWS Secret Access Key for authentication'
+    required: true
+runs:
+  using: 'composite'
+  steps:
+    - name: Configure AWS Credentials
+      uses: aws-actions/configure-aws-credentials@v1
+      with:
+        aws-access-key-id: ${{ inputs.aws-access-key-id }}
+        aws-secret-access-key: ${{ inputs.aws-secret-access-key }}
+        aws-region: ${{ inputs.aws-region }}
+        role-to-assume: arn:aws:iam::${{ inputs.aws-pipeline-account }}:role/AWSControlTowerExecution
+        role-duration-seconds: 3600
+
+    - name: Start CodePipeline Execution
+      run: |
+        echo "Starting CodePipeline 'aft-customization-plan-only' for account ${{ inputs.aws-target-account }} with commit SHA ${{ inputs.commit-sha }}"
+        aws codepipeline start-pipeline-execution \
+          --name aft-customization-plan-only \
+          --source-revisions "actionName=Source,revisionType=COMMIT_ID,revisionValue=${{ inputs.commit-sha }}" \
+          --variables "name=VENDED_ACCOUNT_ID,value=${{ inputs.aws-target-account }}" \
+          --region ${{ inputs.aws-region }}
+        if [ $? -eq 0 ]; then
+          echo "Pipeline execution started successfully."
+        else
+          echo "Error: Failed to start pipeline execution."
+          exit 1
+        fi
+      shell: bash

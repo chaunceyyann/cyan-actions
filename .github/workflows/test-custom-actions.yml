@@ -85,7 +85,7 @@ jobs:
       - name: Lint changed workflows
         run: |
           echo "🔍 Linting changed workflow files..."
-          for wf in ${{ needs.find-changes.outputs.files }}; do
+          echo "${{ needs.find-changes.outputs.files }}" | while IFS= read -r wf; do
             # only lint real workflows, skip this test file
             if [[ $wf =~ ^\.github/workflows/.*\.yml$ ]] && [[ $wf != '.github/workflows/test-custom-actions.yml' ]]; then
               echo "Linting $wf"
@@ -95,12 +95,7 @@ jobs:
 
   test-python-ci-workflow:
     needs: find-changes
-    runs-on: ubuntu-latest
-    if: contains(needs.find-changes.outputs.files, '.github/workflows/python-ci.yml')
-    steps:
-      - uses: actions/checkout@v4
-      - name: Call python-ci workflow as a test
-        uses: ./.github/workflows/python-ci.yml
-        with:
-          python-version: '3.11'
-          run-integration-tests: false 
+    uses: ./.github/workflows/python-ci.yml
+    with:
+      python-version: '3.11'
+      run-integration-tests: false 

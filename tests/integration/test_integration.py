@@ -1,5 +1,4 @@
-from math_utils import add, multiply, divide
-from src.math_utils import subtract
+from src.math_utils import add, multiply, divide, subtract
 
 
 def test_complex_calculation():

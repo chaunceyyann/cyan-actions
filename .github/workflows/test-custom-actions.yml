@@ -93,22 +93,9 @@ jobs:
             fi
           done
 
-  setup-python-ci-workflow:
-    needs: find-changes
-    runs-on: ubuntu-latest
-    if: contains(needs.find-changes.outputs.files, '.github/workflows/python-ci.yml')
-    steps:
-      - uses: actions/checkout@v4
-      - name: Create simple Python project for testing
-        run: |
-          mkdir -p tests/unit tests/integration
-          echo "def add(a, b): return a + b" > math_utils.py
-          echo "from math_utils import add; def test_add(): assert add(2, 3) == 5" > tests/unit/test_math.py
-          echo "from math_utils import add; def test_integration(): assert add(1, 1) == 2" > tests/integration/test_integration.py
-          echo "# Simple test project" > README.md
-          
   test-python-ci-workflow:
     needs: find-changes
+    if: contains(needs.find-changes.outputs.files, '.github/workflows/python-ci.yml')
     uses: ./.github/workflows/python-ci.yml
     with:
       python-version: '3.11'

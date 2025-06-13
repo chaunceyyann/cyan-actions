@@ -1,4 +1,4 @@
-from src.math_utils import add, multiply, divide
+from ...src.math_utils import add, multiply, divide
 
 def test_complex_calculation():
     # (3*4) + (10/2) = 12 + 5 = 17

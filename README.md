@@ -66,6 +66,23 @@ The tests run whenever files under `.github/actions/**` or `.github/workflows/**
 
 See [.github/workflows/test-custom-actions.yml](.github/workflows/test-custom-actions.yml) for details.
 
+## 📊 Example: Workflow Relationship Diagram
+
+Below is a Mermaid diagram showing how reusable workflows and custom actions interact in this repository:
+
+```mermaid
+flowchart TD
+    A[Push or PR Event] --> B[.github/workflows/python-ci.yml]
+    B --> C[Run Linting]
+    B --> D[Run Unit Tests]
+    B --> E[Run Integration Tests]
+    B --> F[Call Custom Actions]
+    F --> G[.github/actions/changed-files]
+    F --> H[Other Custom Actions]
+```
+
+> **Note:** GitHub supports Mermaid diagrams in Markdown files. If you see a diagram above, your platform supports Mermaid!
+
 ## Status
 
 [![Build Status](https://github.com/chaunceyyann/cyan-actions/actions/workflows/ci.yml/badge.svg)](https://github.com/chaunceyyann/cyan-actions/actions)

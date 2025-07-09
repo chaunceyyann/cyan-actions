@@ -13,6 +13,11 @@ on:
         required: false
         default: true
         type: boolean
+      working-directory:
+        description: "Working directory containing Python code and tests"
+        required: false
+        default: "."
+        type: string
 
 jobs:
   lint:
@@ -32,7 +37,7 @@ jobs:
 
       - name: Run flake8
         run: |
-          flake8 .
+          flake8 ${{ inputs.working-directory }}
 
   unit-test:
     runs-on: ubuntu-latest
@@ -51,7 +56,7 @@ jobs:
 
       - name: Run unit tests
         run: |
-          pytest tests/unit
+          pytest ${{ inputs.working-directory }}/tests/unit
 
   integration-test:
     if: ${{ inputs.run-integration-tests == 'true' }}
@@ -71,4 +76,4 @@ jobs:
 
       - name: Run integration tests
         run: |
-          pytest tests/integration 
+          pytest ${{ inputs.working-directory }}/tests/integration 

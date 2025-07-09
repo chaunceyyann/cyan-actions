@@ -27,7 +27,7 @@ inputs:
 runs:
   using: 'composite'
   steps:
-    - name: Configure AWS Credentials
+    - name: Configure AWS Credentials (pipeline account)
       uses: aws-actions/configure-aws-credentials@v1
       with:
         aws-access-key-id: ${{ inputs.aws-access-key-id }}
@@ -36,7 +36,18 @@ runs:
         role-to-assume: arn:aws:iam::${{ inputs.aws-pipeline-account }}:role/AWSControlTowerExecution
         role-duration-seconds: 3600
 
-    - name: Start CodePipeline Execution
+    - name: Assume Role in Target Account
+      id: assume
+      run: |
+        CREDS=$(aws sts assume-role \
+          --role-arn arn:aws:iam::${{ inputs.aws-target-account }}:role/GitHubActionsTriggerRole \
+          --role-session-name "GitHubActionsPlanOnlySession")
+        echo "AWS_ACCESS_KEY_ID=$(echo $CREDS | jq -r .Credentials.AccessKeyId)" >> $GITHUB_ENV
+        echo "AWS_SECRET_ACCESS_KEY=$(echo $CREDS | jq -r .Credentials.SecretAccessKey)" >> $GITHUB_ENV
+        echo "AWS_SESSION_TOKEN=$(echo $CREDS | jq -r .Credentials.SessionToken)" >> $GITHUB_ENV
+      shell: bash
+
+    - name: Start CodePipeline Execution (target account)
       run: |
         echo "Starting CodePipeline 'aft-customization-plan-only' for account ${{ inputs.aws-target-account }} with commit SHA ${{ inputs.commit-sha }}"
         aws codepipeline start-pipeline-execution \

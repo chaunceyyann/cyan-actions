@@ -265,7 +265,7 @@ pre-commit run --all-files
 ## Contributing
 
 1. Create a feature branch with JIRA ticket: `feature/ABC-123-description`
-2. Make your changes
+2. Make your changes to dev
 3. Commit with descriptive message (JIRA ticket will be auto-added)
 4. Push and create a pull request
 

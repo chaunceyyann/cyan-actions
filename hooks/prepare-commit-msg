@@ -75,7 +75,7 @@ fi
 
 # Convert patterns without dash to include dash (ABC123 -> ABC-123)
 if [ -n "$JIRA_TICKET" ] && [[ "$JIRA_TICKET" =~ ^[A-Z]+[0-9]+$ ]]; then
-    JIRA_TICKET=$(echo "$JIRA_TICKET" | sed 's/\([A-Z]\+\)\([0-9]\+\)/\1-\2/')
+    JIRA_TICKET=$(echo "$JIRA_TICKET" | sed 's/\([A-Z]*\)\([0-9]*\)/\1-\2/')
 fi
 
 # If we found a JIRA ticket, check if it's already in the commit message

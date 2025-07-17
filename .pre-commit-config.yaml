@@ -9,6 +9,13 @@ repos:
         stages: [prepare-commit-msg]
         description: Automatically add JIRA ticket from branch name to commit message
 
+      - id: commit-msg
+        name: Commit Message
+        entry: bash hooks/commit-msg
+        language: system
+        stages: [commit-msg]
+        description: Ensure JIRA ticket is in commit message (backup for editor scenarios)
+
   # Standard pre-commit hooks
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v4.5.0

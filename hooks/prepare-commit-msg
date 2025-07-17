@@ -36,6 +36,9 @@ if [ -z "$COMMIT_TYPE" ] || [ "$COMMIT_TYPE" = "commit" ]; then
     fi
 fi
 
+# Store the original file content for later comparison
+ORIGINAL_CONTENT=$(cat "$COMMIT_MSG_FILE" 2>/dev/null || echo "")
+
 # Check if we should skip this commit type
 if [ -n "$SKIP_COMMIT_TYPES" ]; then
     IFS=',' read -ra SKIP_TYPES <<< "$SKIP_COMMIT_TYPES"
@@ -102,15 +105,29 @@ fi
 if [ -n "$JIRA_TICKET" ]; then
     # Check if JIRA ticket is already present in the commit message
     if ! echo "$COMMIT_MSG" | grep -q "$JIRA_TICKET"; then
-        # Use the configured format to add JIRA ticket to the commit message
-        NEW_MSG=$(echo "$JIRA_PREFIX_FORMAT" | sed "s/{TICKET}/$JIRA_TICKET/g" | sed "s/{MESSAGE}/$COMMIT_MSG/g")
-        echo "$NEW_MSG" > "$COMMIT_MSG_FILE"
+        # For editor context, we need to be more careful about preserving the message
+        if [ "$EDITOR_CONTEXT" = true ]; then
+            # If the message is empty or just template, start with JIRA ticket
+            if [ -z "$COMMIT_MSG" ] || echo "$COMMIT_MSG" | grep -q "^#"; then
+                echo "[$JIRA_TICKET] " > "$COMMIT_MSG_FILE"
+            else
+                # If there's actual content, prepend JIRA ticket
+                echo "[$JIRA_TICKET] $COMMIT_MSG" > "$COMMIT_MSG_FILE"
+            fi
+        else
+            # For non-editor context, use the standard format
+            NEW_MSG=$(echo "$JIRA_PREFIX_FORMAT" | sed "s/{TICKET}/$JIRA_TICKET/g" | sed "s/{MESSAGE}/$COMMIT_MSG/g")
+            echo "$NEW_MSG" > "$COMMIT_MSG_FILE"
+        fi
+
+        # Force write to ensure it's saved
+        sync
 
         if [ "$EDITOR_CONTEXT" = true ]; then
-            echo "✅ Added JIRA ticket [$JIRA_TICKET] to commit message from branch: $BRANCH_NAME"
-            echo "💡 Tip: The JIRA ticket has been added. You can edit the message further if needed."
+            echo "✅ Added JIRA ticket [$JIRA_TICKET] to commit message from branch: $BRANCH_NAME" >&2
+            echo "💡 Tip: The JIRA ticket has been added. You can edit the message further if needed." >&2
         else
-            echo "✅ Added JIRA ticket [$JIRA_TICKET] to commit message from branch: $BRANCH_NAME"
+            echo "✅ Added JIRA ticket [$JIRA_TICKET] to commit message from branch: $BRANCH_NAME" >&2
         fi
     fi
 fi

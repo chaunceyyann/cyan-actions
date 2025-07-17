@@ -2,6 +2,11 @@
 
 # Git prepare-commit-msg hook to automatically add JIRA ticket from branch name
 # This hook runs before the commit message editor opens
+#
+# Behavior:
+# - With -m flag: Adds JIRA ticket and commits immediately
+# - Without -m flag: Adds JIRA ticket to editor, user can edit further
+# - Always preserves user's original message content
 
 set -e  # Exit on any error
 
@@ -21,6 +26,15 @@ COMMIT_MSG_FILE=$1
 COMMIT_TYPE=$2
 # Get the commit SHA (third argument, if available)
 COMMIT_SHA=$3
+
+# Check if we're in an editor context (no -m flag)
+EDITOR_CONTEXT=false
+if [ -z "$COMMIT_TYPE" ] || [ "$COMMIT_TYPE" = "commit" ]; then
+    # Check if the commit message file is empty or contains template
+    if [ ! -s "$COMMIT_MSG_FILE" ] || grep -q "^#" "$COMMIT_MSG_FILE" 2>/dev/null; then
+        EDITOR_CONTEXT=true
+    fi
+fi
 
 # Check if we should skip this commit type
 if [ -n "$SKIP_COMMIT_TYPES" ]; then
@@ -42,6 +56,12 @@ fi
 
 # Read the current commit message
 COMMIT_MSG=$(cat "$COMMIT_MSG_FILE")
+
+# If in editor context and message is empty/template, preserve original for backup
+if [ "$EDITOR_CONTEXT" = true ]; then
+    # Create a backup of the original message
+    ORIGINAL_MSG="$COMMIT_MSG"
+fi
 
 # Check if commit message starts with any skip prefixes
 for prefix in "${SKIP_PREFIXES[@]}"; do
@@ -85,6 +105,12 @@ if [ -n "$JIRA_TICKET" ]; then
         # Use the configured format to add JIRA ticket to the commit message
         NEW_MSG=$(echo "$JIRA_PREFIX_FORMAT" | sed "s/{TICKET}/$JIRA_TICKET/g" | sed "s/{MESSAGE}/$COMMIT_MSG/g")
         echo "$NEW_MSG" > "$COMMIT_MSG_FILE"
-        echo "✅ Added JIRA ticket [$JIRA_TICKET] to commit message from branch: $BRANCH_NAME"
+
+        if [ "$EDITOR_CONTEXT" = true ]; then
+            echo "✅ Added JIRA ticket [$JIRA_TICKET] to commit message from branch: $BRANCH_NAME"
+            echo "💡 Tip: The JIRA ticket has been added. You can edit the message further if needed."
+        else
+            echo "✅ Added JIRA ticket [$JIRA_TICKET] to commit message from branch: $BRANCH_NAME"
+        fi
     fi
 fi

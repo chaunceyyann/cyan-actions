@@ -1,0 +1,83 @@
+name: Plan-Only CodePipeline Trigger
+
+on:
+  pull_request:
+    branches: [dev, main]
+  push:
+    branches: [dev, main]
+
+jobs:
+  trigger-codepipeline:
+    runs-on: ubuntu-latest
+    env:
+      AWS_REGION: us-west-2
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Determine environment based on target branch
+        id: env
+        run: |
+          ENV=$([ "${{ github.ref_name }}" = "main" ] && echo "prod_account_number" || echo "dev_account_number")
+          echo "aft_account=$ENV" >> $GITHUB_OUTPUT
+          echo "Environment: $ENV"
+
+      - name: Find changed files
+        id: changes
+        uses: ./.github/actions/changed-files
+        with:
+          pattern: |
+            ^src/.*
+            ^tests/.*
+
+      - name: Determine account number
+        id: account
+        uses: ./.github/actions/account-mapping
+        with:
+          changed-files: ${{ steps.changes.outputs.files }}
+          environment: ${{ steps.env.outputs.aft_account }}
+
+      - name: Call AWS AFT CodePipeline Action
+        id: codepipeline
+        uses: ./.github/actions/aws-aft-codepipeline
+        with:
+          aws-region: ${{ env.AWS_REGION }}
+          aws-target-account: ${{ steps.account.outputs.account_number }}
+          aws-pipeline-account: ${{ steps.env.outputs.aft_account }}
+          commit-sha: ${{ github.sha }}
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+
+      - name: Generate summary
+        run: |
+          cat << EOF >> $GITHUB_STEP_SUMMARY
+          ## 🚀 CodePipeline Execution Summary
+          
+          ### Execution Details
+          - **Environment**: ${{ steps.env.outputs.aft_account }}
+          - **Target Account**: ${{ steps.account.outputs.account_number }}
+          - **Pipeline Account**: ${{ steps.env.outputs.aft_account }}
+          - **AWS Region**: ${{ env.AWS_REGION }}
+          
+          ### Commit Information
+          - **Commit SHA**: ${{ github.sha }}
+          - **Commit Message**: ${{ github.event.head_commit.message }}
+          - **Commit Author**: ${{ github.event.head_commit.author.name }}
+          - **Commit Timestamp**: ${{ github.event.head_commit.timestamp }}
+          
+          ### Pipeline Status
+          EOF
+          
+          if [ "${{ steps.codepipeline.outputs.execution-id }}" != "null" ]; then
+            cat << EOF >> $GITHUB_STEP_SUMMARY
+          - **Execution ID**: ${{ steps.codepipeline.outputs.execution-id }}
+          - **Status**: ${{ steps.codepipeline.outputs.status }}
+          - **Start Time**: ${{ steps.codepipeline.outputs.start-time }}
+          - **Pipeline Console**: [View in AWS Console](https://${{ env.AWS_REGION }}.console.aws.amazon.com/codesuite/codepipeline/pipelines/aft-customization-plan-only/executions/${{ steps.codepipeline.outputs.execution-id }}/view?region=${{ env.AWS_REGION }})
+          EOF
+          else
+            echo "- **Status**: Pipeline execution not found" >> $GITHUB_STEP_SUMMARY
+          fi
+        shell: bash

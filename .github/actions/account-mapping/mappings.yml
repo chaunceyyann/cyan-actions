@@ -1,0 +1,8 @@
+# Account mappings for different environments and file types
+prod_account_number:
+  src: prod_src_account
+  tests: prod_tests_account
+
+dev_account_number:
+  src: dev_src_account
+  tests: dev_tests_account 

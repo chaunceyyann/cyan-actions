@@ -24,23 +24,24 @@ inputs:
   aws-secret-access-key:
     description: 'AWS Secret Access Key for authentication'
     required: true
+outputs:
+  execution-id:
+    description: 'Pipeline execution ID'
+    value: ${{ steps.codepipeline.outputs.execution_id }}
+  status:
+    description: 'Pipeline execution status'
+    value: ${{ steps.pipeline-info.outputs.status }}
+  start-time:
+    description: 'Pipeline execution start time'
+    value: ${{ steps.pipeline-info.outputs.start_time }}
 runs:
   using: 'composite'
   steps:
-    - name: Configure AWS Credentials (pipeline account)
-      uses: aws-actions/configure-aws-credentials@v1
-      with:
-        aws-access-key-id: ${{ inputs.aws-access-key-id }}
-        aws-secret-access-key: ${{ inputs.aws-secret-access-key }}
-        aws-region: ${{ inputs.aws-region }}
-        role-to-assume: arn:aws:iam::${{ inputs.aws-pipeline-account }}:role/AWSControlTowerExecution
-        role-duration-seconds: 3600
-
-    - name: Assume Role in Target Account
+    - name: Assume Role in AFT Account
       id: assume
       run: |
         CREDS=$(aws sts assume-role \
-          --role-arn arn:aws:iam::${{ inputs.aws-target-account }}:role/GitHubActionsTriggerRole \
+          --role-arn arn:aws:iam::${{ inputs.aws-pipeline-account }}:role/GitHubActionsTriggerRole \
           --role-session-name "GitHubActionsPlanOnlySession")
         echo "AWS_ACCESS_KEY_ID=$(echo $CREDS | jq -r .Credentials.AccessKeyId)" >> $GITHUB_ENV
         echo "AWS_SECRET_ACCESS_KEY=$(echo $CREDS | jq -r .Credentials.SecretAccessKey)" >> $GITHUB_ENV
@@ -48,17 +49,52 @@ runs:
       shell: bash
 
     - name: Start CodePipeline Execution (target account)
+      id: codepipeline
       run: |
         echo "Starting CodePipeline 'aft-customization-plan-only' for account ${{ inputs.aws-target-account }} with commit SHA ${{ inputs.commit-sha }}"
-        aws codepipeline start-pipeline-execution \
+        RESPONSE=$(aws codepipeline start-pipeline-execution \
           --name aft-customization-plan-only \
           --source-revisions "actionName=Source,revisionType=COMMIT_ID,revisionValue=${{ inputs.commit-sha }}" \
           --variables "name=VENDED_ACCOUNT_ID,value=${{ inputs.aws-target-account }}" \
-          --region ${{ inputs.aws-region }}
-        if [ $? -eq 0 ]; then
+          --region ${{ inputs.aws-region }})
+        
+        EXECUTION_ID=$(echo "$RESPONSE" | jq -r '.pipelineExecutionId')
+        echo "execution_id=$EXECUTION_ID" >> $GITHUB_OUTPUT
+        
+        if [ $? -eq 0 ] && [ "$EXECUTION_ID" != "null" ]; then
           echo "Pipeline execution started successfully."
+          echo "Execution ID: $EXECUTION_ID"
         else
           echo "Error: Failed to start pipeline execution."
           exit 1
+        fi
+      shell: bash
+
+    - name: Get pipeline execution details
+      id: pipeline-info
+      run: |
+        EXECUTION_ID="${{ steps.codepipeline.outputs.execution_id }}"
+        
+        if [ "$EXECUTION_ID" != "null" ] && [ -n "$EXECUTION_ID" ]; then
+          # Get execution details
+          STATUS=$(aws codepipeline get-pipeline-execution \
+            --pipeline-name aft-customization-plan-only \
+            --pipeline-execution-id "$EXECUTION_ID" \
+            --region ${{ inputs.aws-region }} \
+            --query 'pipelineExecution.status' \
+            --output text)
+          
+          START_TIME=$(aws codepipeline get-pipeline-execution \
+            --pipeline-name aft-customization-plan-only \
+            --pipeline-execution-id "$EXECUTION_ID" \
+            --region ${{ inputs.aws-region }} \
+            --query 'pipelineExecution.startTime' \
+            --output text)
+          
+          echo "status=$STATUS" >> $GITHUB_OUTPUT
+          echo "start_time=$START_TIME" >> $GITHUB_OUTPUT
+        else
+          echo "status=None" >> $GITHUB_OUTPUT
+          echo "start_time=None" >> $GITHUB_OUTPUT
         fi
       shell: bash

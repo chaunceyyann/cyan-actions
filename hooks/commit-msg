@@ -48,9 +48,15 @@ fi
 if [ -n "$JIRA_TICKET" ]; then
     # Check if JIRA ticket is already present in the commit message
     if ! echo "$COMMIT_MSG" | grep -q "$JIRA_TICKET"; then
-        # Use the configured format to add JIRA ticket to the commit message
-        NEW_MSG=$(echo "$JIRA_PREFIX_FORMAT" | sed "s/{TICKET}/$JIRA_TICKET/g" | sed "s/{MESSAGE}/$COMMIT_MSG/g")
-        echo "$NEW_MSG" > "$COMMIT_MSG_FILE"
-        echo "✅ Added JIRA ticket [$JIRA_TICKET] to commit message from branch: $BRANCH_NAME" >&2
+        # Check if the message is empty or just template comments
+        if [ -z "$COMMIT_MSG" ] || echo "$COMMIT_MSG" | grep -q "^#" || [ "$(echo "$COMMIT_MSG" | wc -w)" -eq 0 ]; then
+            # For empty messages, just add the JIRA ticket
+            echo "[$JIRA_TICKET] " > "$COMMIT_MSG_FILE"
+            echo "✅ Added JIRA ticket [$JIRA_TICKET] to empty commit message from branch: $BRANCH_NAME" >&2
+        else
+            # For non-empty messages, prepend JIRA ticket (handle spaces properly)
+            printf "[%s] %s\n" "$JIRA_TICKET" "$COMMIT_MSG" > "$COMMIT_MSG_FILE"
+            echo "✅ Added JIRA ticket [$JIRA_TICKET] to commit message from branch: $BRANCH_NAME" >&2
+        fi
     fi
 fi

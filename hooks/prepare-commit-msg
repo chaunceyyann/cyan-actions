@@ -87,4 +87,4 @@ if [ -n "$JIRA_TICKET" ]; then
         echo "$NEW_MSG" > "$COMMIT_MSG_FILE"
         echo "✅ Added JIRA ticket [$JIRA_TICKET] to commit message from branch: $BRANCH_NAME"
     fi
-fi 
+fi

@@ -55,4 +55,4 @@ repos:
     hooks:
       - id: prettier
         types: [yaml, json]
-        description: Format YAML and JSON files 
+        description: Format YAML and JSON files

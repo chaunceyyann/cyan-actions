@@ -1,5 +1,8 @@
 # Cyan Actions
 
+[![Test Custom Actions](https://github.com/chaunceyyann/cyan-actions/actions/workflows/test-custom-actions.yml/badge.svg)](https://github.com/chaunceyyann/cyan-actions/actions/workflows/test-custom-actions.yml)
+[![PR Checks](https://github.com/chaunceyyann/cyan-actions/actions/workflows/pr-checks.yml/badge.svg)](https://github.com/chaunceyyann/cyan-actions/actions/workflows/pr-checks.yml)
+
 A collection of shared GitHub Actions workflows, custom actions, and development tools for improved CI/CD automation.
 
 ## 📚 Documentation
@@ -45,10 +48,6 @@ This repository includes comprehensive testing for all custom actions and workfl
 - **Automated CI**: Tests run on every PR and push
 
 See [.github/workflows/test-custom-actions.yml](.github/workflows/test-custom-actions.yml) for details.
-
-## 📊 Status
-
-[![Build Status](https://github.com/chaunceyyann/cyan-actions/actions/workflows/test-custom-actions.yml/badge.svg)](https://github.com/chaunceyyann/cyan-actions/actions)
 
 ## 🤝 Contributing
 

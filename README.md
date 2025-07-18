@@ -356,10 +356,43 @@ jobs:
     with:
       python-version: '3.x'
       fetch-depth: '0'
+      include-terraform: 'true'  # Enable Terraform linting
+      terraform-working-dir: './terraform'  # Terraform files directory
 ```
 
 **Available inputs:**
 - `python-version`: Python version to use (default: '3.x')
+- `fetch-depth`: Git fetch depth for diff calculation (default: '0')
+- `include-terraform`: Include Terraform linting (default: 'false')
+- `terraform-working-dir`: Working directory for Terraform files (default: '.')
+
+### Terraform Lint Workflow
+
+The `.github/workflows/terraform-lint-reusable.yml` provides a standalone reusable workflow for Terraform linting with TFLint and AWS ruleset.
+
+**Usage in other repositories:**
+
+```yaml
+name: Terraform Lint
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  terraform-lint:
+    uses: your-username/cyan-actions/.github/workflows/terraform-lint-reusable.yml@main
+    with:
+      working-directory: './terraform'
+      tflint-version: 'v0.44.1'
+      aws-ruleset-version: 'v0.40.0'
+```
+
+**Available inputs:**
+- `working-directory`: Working directory containing Terraform files (default: '.')
+- `tflint-version`: TFLint version to use (default: 'v0.44.1')
+- `aws-ruleset-version`: AWS ruleset version to use (default: 'v0.40.0')
 - `fetch-depth`: Git fetch depth for diff calculation (default: '0')
 
 **Features:**

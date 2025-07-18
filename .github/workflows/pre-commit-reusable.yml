@@ -13,6 +13,16 @@ on:
         required: false
         default: '0'
         type: string
+      include-terraform:
+        description: 'Include Terraform linting'
+        required: false
+        default: 'false'
+        type: string
+      terraform-working-dir:
+        description: 'Working directory for Terraform files'
+        required: false
+        default: '.'
+        type: string
     secrets:
       # Add any secrets that might be needed for pre-commit hooks
       pass:
@@ -39,3 +49,30 @@ jobs:
           else
             echo "No files changed, skipping pre-commit checks"
           fi
+
+  terraform-lint:
+    if: inputs.include-terraform == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: ${{ inputs.fetch-depth }}
+      - name: Get changed files
+        uses: ./.github/actions/changed-files
+        id: changed-files
+      - name: Check for Terraform files
+        id: check-terraform
+        run: |
+          if echo "${{ steps.changed-files.outputs.files }}" | grep -q "\.tf$"; then
+            echo "terraform_files=true" >> $GITHUB_OUTPUT
+          else
+            echo "terraform_files=false" >> $GITHUB_OUTPUT
+          fi
+      - name: Run TFLint
+        if: steps.check-terraform.outputs.terraform_files == 'true'
+        uses: ./.github/actions/tflint
+        with:
+          working-directory: ${{ inputs.terraform-working-dir }}
+      - name: Skip TFLint
+        if: steps.check-terraform.outputs.terraform_files == 'false'
+        run: echo "No Terraform files changed, skipping TFLint checks"

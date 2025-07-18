@@ -1,0 +1,54 @@
+name: Terraform Lint (Reusable)
+
+on:
+  workflow_call:
+    inputs:
+      working-directory:
+        description: 'Working directory containing Terraform files'
+        required: false
+        default: '.'
+        type: string
+      tflint-version:
+        description: 'TFLint version to use'
+        required: false
+        default: 'v0.44.1'
+        type: string
+      aws-ruleset-version:
+        description: 'AWS ruleset version to use'
+        required: false
+        default: 'v0.40.0'
+        type: string
+      fetch-depth:
+        description: 'Git fetch depth for diff calculation'
+        required: false
+        default: '0'
+        type: string
+
+jobs:
+  terraform-lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: ${{ inputs.fetch-depth }}
+      - name: Get changed files
+        uses: ./.github/actions/changed-files
+        id: changed-files
+      - name: Check for Terraform files
+        id: check-terraform
+        run: |
+          if echo "${{ steps.changed-files.outputs.files }}" | grep -q "\.tf$"; then
+            echo "terraform_files=true" >> $GITHUB_OUTPUT
+          else
+            echo "terraform_files=false" >> $GITHUB_OUTPUT
+          fi
+      - name: Run TFLint
+        if: steps.check-terraform.outputs.terraform_files == 'true'
+        uses: ./.github/actions/tflint
+        with:
+          tflint-version: ${{ inputs.tflint-version }}
+          aws-ruleset-version: ${{ inputs.aws-ruleset-version }}
+          working-directory: ${{ inputs.working-directory }}
+      - name: Skip TFLint
+        if: steps.check-terraform.outputs.terraform_files == 'false'
+        run: echo "No Terraform files changed, skipping TFLint checks"

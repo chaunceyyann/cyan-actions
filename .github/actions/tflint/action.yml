@@ -1,0 +1,64 @@
+name: "TFLint"
+description: "Run TFLint with AWS ruleset on Terraform files"
+inputs:
+  tflint-version:
+    description: 'TFLint version to use'
+    required: false
+    default: 'v0.44.1'
+    type: string
+  aws-ruleset-version:
+    description: 'AWS ruleset version to use'
+    required: false
+    default: 'v0.40.0'
+    type: string
+  working-directory:
+    description: 'Working directory to run TFLint in'
+    required: false
+    default: '.'
+    type: string
+outputs:
+  exit-code:
+    description: 'Exit code from TFLint'
+runs:
+  using: "composite"
+  steps:
+    - name: Install TFLint
+      shell: bash
+      run: |
+        TFLINT_VERSION="${{ inputs.tflint-version }}"
+        curl -sSLo tflint.zip "https://github.com/terraform-linters/tflint/releases/download/${TFLINT_VERSION}/tflint_linux_amd64.zip"
+        unzip tflint.zip
+        sudo mv tflint /usr/local/bin/
+        rm tflint.zip
+        tflint --version
+
+    - name: Create TFLint config
+      shell: bash
+      run: |
+        cat > .tflint.hcl << EOF
+        plugin "aws" {
+            enabled = true
+            version = "${{ inputs.aws-ruleset-version }}"
+            source  = "github.com/terraform-linters/tflint-ruleset-aws"
+        }
+        EOF
+
+    - name: Initialize TFLint
+      shell: bash
+      working-directory: ${{ inputs.working-directory }}
+      run: |
+        tflint --init
+
+    - name: Run TFLint
+      shell: bash
+      working-directory: ${{ inputs.working-directory }}
+      run: |
+        tflint --format=compact
+      continue-on-error: true
+
+    - name: Get exit code
+      shell: bash
+      working-directory: ${{ inputs.working-directory }}
+      run: |
+        tflint --format=compact
+        echo "exit-code=$?" >> $GITHUB_OUTPUT

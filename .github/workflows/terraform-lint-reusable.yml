@@ -31,24 +31,18 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: ${{ inputs.fetch-depth }}
-      - name: Get changed files
+      - name: Get Terraform files
         uses: ./.github/actions/changed-files
-        id: changed-files
-      - name: Check for Terraform files
-        id: check-terraform
-        run: |
-          if echo "${{ steps.changed-files.outputs.files }}" | grep -q "\.tf$"; then
-            echo "terraform_files=true" >> $GITHUB_OUTPUT
-          else
-            echo "terraform_files=false" >> $GITHUB_OUTPUT
-          fi
+        id: terraform-files
+        with:
+          pattern: "\\.tf$"
       - name: Run TFLint
-        if: steps.check-terraform.outputs.terraform_files == 'true'
+        if: steps.terraform-files.outputs.files != ''
         uses: ./.github/actions/tflint
         with:
           tflint-version: ${{ inputs.tflint-version }}
           aws-ruleset-version: ${{ inputs.aws-ruleset-version }}
           working-directory: ${{ inputs.working-directory }}
       - name: Skip TFLint
-        if: steps.check-terraform.outputs.terraform_files == 'false'
+        if: steps.terraform-files.outputs.files == ''
         run: echo "No Terraform files changed, skipping TFLint checks"

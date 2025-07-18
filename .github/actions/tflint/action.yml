@@ -50,15 +50,17 @@ runs:
         tflint --init
 
     - name: Run TFLint
-      shell: bash
-      working-directory: ${{ inputs.working-directory }}
-      run: |
-        tflint --format=compact
-      continue-on-error: true
-
-    - name: Get exit code
+      id: run-tflint
       shell: bash
       working-directory: ${{ inputs.working-directory }}
       run: |
         tflint --format=compact
         echo "exit-code=$?" >> $GITHUB_OUTPUT
+
+    - name: Fail if TFLint found issues
+      shell: bash
+      run: |
+        if [ "${{ steps.run-tflint.outputs.exit-code }}" != "0" ]; then
+          echo "❌ TFLint found issues. Please fix them before proceeding."
+          exit 1
+        fi

@@ -35,17 +35,26 @@ runs:
       shell: bash
       run: |
         echo "📦 Testing JavaScript actions..."
+        echo "Changed files: ${{ steps.find-changes.outputs.files }}"
 
         # Check if any JavaScript actions exist
         js_actions=""
         for action_file in ${{ steps.find-changes.outputs.files }}; do
+          echo "Checking file: $action_file"
           if [[ -n "$action_file" && -f "$action_file" ]]; then
+            echo "File exists, checking action type..."
             action_type=$(grep -A1 "runs:" "$action_file" | grep "using:" | awk '{print $2}' | tr -d '"')
+            echo "Action type: $action_type"
             if [[ "$action_type" =~ ^node(16|18|20)$ ]]; then
+              echo "Found JavaScript action: $action_file"
               js_actions="$js_actions $action_file"
             fi
+          else
+            echo "File does not exist or is empty: $action_file"
           fi
         done
+
+        echo "JavaScript actions found: '$js_actions'"
 
         if [[ -n "$js_actions" ]]; then
           echo "Found JavaScript actions: $js_actions"

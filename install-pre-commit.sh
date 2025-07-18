@@ -30,13 +30,12 @@ else
 fi
 
 # Make the hook script executable
-chmod +x hooks/prepare-commit-msg
-echo "✅ Made prepare-commit-msg hook executable"
+chmod +x hooks/commit-msg
+echo "✅ Made commit-msg hook executable"
 
 # Install pre-commit hooks
 echo "📦 Installing pre-commit hooks..."
 pre-commit install
-pre-commit install --hook-type prepare-commit-msg
 
 echo "✅ Pre-commit hooks installed"
 

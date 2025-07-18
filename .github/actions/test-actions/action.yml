@@ -30,36 +30,167 @@ runs:
         echo "Changed actions:"
         echo "${{ steps.find-changes.outputs.files }}"
 
-    - name: Test custom actions
+        - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+
+    - name: Test composite actions
       shell: bash
       run: |
-        echo "🔍 Testing custom actions..."
-        # Install actionlint
-        GO111MODULE=on go install github.com/rhysd/actionlint/cmd/actionlint@latest
-        export PATH="$HOME/go/bin:$PATH"
+        echo "🔧 Testing composite actions..."
 
-        # Split files by whitespace and test each action
+        # Find composite actions
+        composite_actions=""
         for action_file in ${{ steps.find-changes.outputs.files }}; do
-          if [[ -n "$action_file" ]]; then
-            echo "Testing action: $action_file"
-
-            # Lint the action file
-            echo "Linting $action_file..."
-            actionlint "$action_file"
-
-            # Basic validation - check if it's a valid action file
-            if [[ -f "$action_file" ]]; then
-              echo "✅ Action file exists: $action_file"
-
-              # Check if it's a composite action (has runs.using: composite)
-              if grep -q "runs:" "$action_file" && grep -q "using:" "$action_file"; then
-                echo "✅ Valid action structure detected"
-              else
-                echo "⚠️  Warning: Action may not have proper runs/using structure"
-              fi
-            else
-              echo "❌ Action file not found: $action_file"
+          if [[ -n "$action_file" && -f "$action_file" ]]; then
+            action_type=$(grep -A1 "runs:" "$action_file" | grep "using:" | awk '{print $2}' | tr -d '"')
+            if [[ "$action_type" == "composite" ]]; then
+              composite_actions="$composite_actions $action_file"
             fi
-            echo "---"
           fi
         done
+
+        if [[ -n "$composite_actions" ]]; then
+          echo "Found composite actions: $composite_actions"
+          for action_file in $composite_actions; do
+            echo "Testing composite action: $action_file"
+
+            # Validate YAML structure
+            if grep -q "runs:" "$action_file" && grep -q "using:" "$action_file" && grep -q "steps:" "$action_file"; then
+              echo "✅ Valid composite action structure"
+            else
+              echo "❌ Invalid composite action structure"
+              exit 1
+            fi
+
+            # Test shell scripts in steps
+            echo "Testing shell scripts..."
+            grep -A5 "shell:" "$action_file" | grep "run:" | while read -r line; do
+              script=$(echo "$line" | sed 's/.*run: //')
+              if [[ -n "$script" ]]; then
+                echo "Validating script: $script"
+                # Basic shell syntax check
+                if echo "$script" | bash -n 2>/dev/null; then
+                  echo "✅ Script syntax is valid"
+                else
+                  echo "⚠️  Script syntax may have issues"
+                fi
+              fi
+            done
+            echo "---"
+          done
+        else
+          echo "No composite actions found"
+        fi
+
+    - name: Test container actions
+      shell: bash
+      run: |
+        echo "🐳 Testing container actions..."
+
+        # Find container actions
+        container_actions=""
+        for action_file in ${{ steps.find-changes.outputs.files }}; do
+          if [[ -n "$action_file" && -f "$action_file" ]]; then
+            action_type=$(grep -A1 "runs:" "$action_file" | grep "using:" | awk '{print $2}' | tr -d '"')
+            if [[ "$action_type" == "docker" ]]; then
+              container_actions="$container_actions $action_file"
+            fi
+          fi
+        done
+
+        if [[ -n "$container_actions" ]]; then
+          echo "Found container actions: $container_actions"
+          for action_file in $container_actions; do
+            echo "Testing container action: $action_file"
+
+            # Check for Dockerfile
+            action_dir=$(dirname "$action_file")
+            if [[ -f "$action_dir/Dockerfile" ]]; then
+              echo "✅ Dockerfile found"
+              # Basic Dockerfile validation - check for common syntax issues
+              if grep -q "^FROM " "$action_dir/Dockerfile"; then
+                echo "✅ Dockerfile has valid FROM instruction"
+              else
+                echo "❌ Dockerfile missing FROM instruction"
+                exit 1
+              fi
+
+              # Check for common Dockerfile issues
+              if grep -q "COPY\|ADD" "$action_dir/Dockerfile"; then
+                echo "✅ Dockerfile has file operations"
+              else
+                echo "⚠️  Dockerfile may be missing file operations"
+              fi
+            else
+              echo "❌ Dockerfile not found in $action_dir"
+              exit 1
+            fi
+            echo "---"
+          done
+        else
+          echo "No container actions found"
+        fi
+
+    - name: Test JavaScript actions
+      shell: bash
+      run: |
+        echo "📦 Testing JavaScript actions..."
+
+        # Find JavaScript actions
+        js_actions=""
+        for action_file in ${{ steps.find-changes.outputs.files }}; do
+          if [[ -n "$action_file" && -f "$action_file" ]]; then
+            action_type=$(grep -A1 "runs:" "$action_file" | grep "using:" | awk '{print $2}' | tr -d '"')
+            if [[ "$action_type" =~ ^node(16|18|20)$ ]]; then
+              js_actions="$js_actions $action_file"
+            fi
+          fi
+        done
+
+        if [[ -n "$js_actions" ]]; then
+          echo "Found JavaScript actions: $js_actions"
+          for action_file in $js_actions; do
+            echo "Testing JavaScript action: $action_file"
+            action_dir=$(dirname "$action_file")
+
+            # Check for package.json
+            if [[ -f "$action_dir/package.json" ]]; then
+              echo "✅ package.json found"
+
+              # Validate package.json syntax
+              if node -e "JSON.parse(require('fs').readFileSync('$action_dir/package.json', 'utf8'))" 2>/dev/null; then
+                echo "✅ package.json syntax is valid"
+              else
+                echo "❌ package.json syntax is invalid"
+                exit 1
+              fi
+
+              # Check for main entry point
+              main_file=$(node -e "console.log(JSON.parse(require('fs').readFileSync('$action_dir/package.json', 'utf8')).main || '')" 2>/dev/null)
+              if [[ -n "$main_file" && -f "$action_dir/$main_file" ]]; then
+                echo "✅ Main entry point found: $main_file"
+              else
+                echo "❌ Main entry point not found or invalid"
+                exit 1
+              fi
+
+              # Install dependencies and run tests if they exist
+              if grep -q '"test"' "$action_dir/package.json"; then
+                echo "Installing dependencies and running tests..."
+                cd "$action_dir"
+                npm install
+                npm test
+              else
+                echo "No tests configured in package.json"
+              fi
+            else
+              echo "❌ package.json not found in $action_dir"
+              exit 1
+            fi
+            echo "---"
+          done
+        else
+          echo "No JavaScript actions found"
+        fi

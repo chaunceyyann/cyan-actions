@@ -1,0 +1,18 @@
+name: PR Checks
+
+on:
+  pull_request:
+    branches: [master, dev]
+
+jobs:
+  pre-commit:
+    uses: ./.github/workflows/pre-commit-reusable.yml
+    with:
+      python-version: '3.x'
+      fetch-depth: '0'
+
+  terraform-lint:
+    uses: ./.github/workflows/terraform-lint-reusable.yml
+    with:
+      working-directory: '.'
+      fetch-depth: '0'

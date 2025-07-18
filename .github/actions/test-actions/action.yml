@@ -30,10 +30,36 @@ runs:
         echo "Changed actions:"
         echo "${{ steps.find-changes.outputs.files }}"
 
-    - name: Test changed-files action
+    - name: Test custom actions
       shell: bash
       run: |
-        echo "Testing changed-files action..."
-        # Test the action with different patterns
-        echo "Testing with no pattern..."
-        # Add more specific tests as needed
+        echo "🔍 Testing custom actions..."
+        # Install actionlint
+        GO111MODULE=on go install github.com/rhysd/actionlint/cmd/actionlint@latest
+        export PATH="$HOME/go/bin:$PATH"
+
+        # Split files by whitespace and test each action
+        for action_file in ${{ steps.find-changes.outputs.files }}; do
+          if [[ -n "$action_file" ]]; then
+            echo "Testing action: $action_file"
+
+            # Lint the action file
+            echo "Linting $action_file..."
+            actionlint "$action_file"
+
+            # Basic validation - check if it's a valid action file
+            if [[ -f "$action_file" ]]; then
+              echo "✅ Action file exists: $action_file"
+
+              # Check if it's a composite action (has runs.using: composite)
+              if grep -q "runs:" "$action_file" && grep -q "using:" "$action_file"; then
+                echo "✅ Valid action structure detected"
+              else
+                echo "⚠️  Warning: Action may not have proper runs/using structure"
+              fi
+            else
+              echo "❌ Action file not found: $action_file"
+            fi
+            echo "---"
+          fi
+        done

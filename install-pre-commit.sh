@@ -40,9 +40,14 @@ pre-commit install --hook-type prepare-commit-msg
 
 echo "✅ Pre-commit hooks installed"
 
-# Run pre-commit on all files to ensure everything is set up
-echo "🔍 Running pre-commit checks on all files..."
-pre-commit run --all-files
+# Run pre-commit checks
+if [ -n "$1" ]; then
+    echo "🔍 Running pre-commit checks on changed files: $1"
+    pre-commit run --files $1
+else
+    echo "🔍 Running pre-commit checks on all files..."
+    pre-commit run --all-files
+fi
 
 echo ""
 echo "🎉 Setup complete!"

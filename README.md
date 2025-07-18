@@ -286,3 +286,109 @@ pre-commit run --all-files
 ## License
 
 MIT License - see LICENSE file for details.
+
+# Cyan Actions
+
+A collection of Git hooks and GitHub Actions for improved development workflow.
+
+## Features
+
+- **Commit Message Hook**: Automatically adds JIRA ticket numbers from branch names to commit messages
+- **Pre-commit Checks**: Enforces code quality standards with configurable hooks
+- **Reusable Workflows**: Share pre-commit checks across multiple repositories
+
+## Git Hooks
+
+### Commit Message Hook
+
+The `hooks/commit-msg` script automatically prepends JIRA ticket numbers from branch names to commit messages.
+
+**Supported JIRA patterns:**
+- `JIRA-123` (standard format)
+- `ABC123` (no dash format, automatically converted to `ABC-123`)
+- `AB-123` (minimum 2 letters)
+
+**Installation:**
+```bash
+# Copy the hook to your repository
+cp hooks/commit-msg .git/hooks/
+chmod +x .git/hooks/commit-msg
+```
+
+## Pre-commit Configuration
+
+This repository includes a comprehensive pre-commit configuration with:
+
+- **Trailing whitespace removal**
+- **End-of-file newline enforcement**
+- **YAML syntax validation**
+- **Large file detection**
+- **Shell script linting with shellcheck**
+
+**Installation:**
+```bash
+# Run the installation script
+chmod +x install-pre-commit.sh
+./install-pre-commit.sh
+```
+
+## Reusable Workflows
+
+### Pre-commit Checks Workflow
+
+The `.github/workflows/pre-commit-reusable.yml` provides a reusable workflow that can be used in any repository to enforce pre-commit checks on changed files.
+
+**Usage in other repositories:**
+
+Create a `.github/workflows/pre-commit.yml` file in your repository:
+
+```yaml
+name: Pre-Commit Checks
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  pre-commit:
+    uses: your-username/cyan-actions/.github/workflows/pre-commit-reusable.yml@main
+    with:
+      python-version: '3.x'
+      fetch-depth: '0'
+```
+
+**Available inputs:**
+- `python-version`: Python version to use (default: '3.x')
+- `fetch-depth`: Git fetch depth for diff calculation (default: '0')
+
+**Features:**
+- Automatically detects changed files in PRs and pushes
+- Only runs checks on modified files for efficiency
+- Supports both pull requests and direct pushes to main branch
+- Configurable Python version and git fetch depth
+
+## Development
+
+### Testing
+
+Run the test suite:
+```bash
+# Unit tests
+python -m pytest tests/unit/
+
+# Integration tests
+python -m pytest tests/integration/
+```
+
+### Contributing
+
+1. Fork the repository
+2. Create a feature branch with JIRA ticket prefix (e.g., `JIRA-123-feature-name`)
+3. Make your changes
+4. Ensure pre-commit checks pass
+5. Submit a pull request
+
+## License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.

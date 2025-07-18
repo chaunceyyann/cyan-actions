@@ -9,14 +9,25 @@ echo "🚀 Setting up pre-commit hooks and JIRA integration..."
 # Check if pre-commit is installed
 if ! command -v pre-commit &> /dev/null; then
     echo "❌ pre-commit is not installed."
-    echo "Please install it first:"
-    echo "  pip install pre-commit"
-    echo "  or"
-    echo "  brew install pre-commit"
-    exit 1
-fi
+    echo "Attempting to install with pip..."
 
-echo "✅ pre-commit is installed"
+    # Try to install with pip
+    if command -v pip &> /dev/null; then
+        pip install pre-commit
+        echo "✅ pre-commit installed with pip"
+    elif command -v pip3 &> /dev/null; then
+        pip3 install pre-commit
+        echo "✅ pre-commit installed with pip3"
+    else
+        echo "❌ pip not found. Please install pre-commit manually:"
+        echo "  pip install pre-commit"
+        echo "  or"
+        echo "  brew install pre-commit"
+        exit 1
+    fi
+else
+    echo "✅ pre-commit is already installed"
+fi
 
 # Make the hook script executable
 chmod +x hooks/prepare-commit-msg

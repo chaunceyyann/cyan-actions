@@ -2,9 +2,8 @@ name: Plan-Only CodePipeline Trigger
 
 on:
   pull_request:
-    branches: [dev, main]
-  push:
-    branches: [dev, main]
+    types: [labeled]
+    branches: [dev, master]
 
 jobs:
   trigger-codepipeline:
@@ -17,12 +16,12 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Determine environment based on target branch
-        id: env
+      - name: Determine platform based on target branch
+        id: platform
         run: |
-          ENV=$([ "${{ github.ref_name }}" = "main" ] && echo "prod_account_number" || echo "dev_account_number")
-          echo "aft_account=$ENV" >> $GITHUB_OUTPUT
-          echo "Environment: $ENV"
+          PLATFORM=$([ "${{ github.ref_name }}" = "master" ] && echo "prod_account_number" || echo "dev_account_number")
+          echo "aft_account=$PLATFORM" >> $GITHUB_OUTPUT
+          echo "Platform: $PLATFORM"
 
       - name: Find changed files
         id: changes
@@ -37,7 +36,7 @@ jobs:
         uses: ./.github/actions/account-mapping
         with:
           changed-files: ${{ steps.changes.outputs.files }}
-          environment: ${{ steps.env.outputs.aft_account }}
+          environment: ${{ steps.platform.outputs.aft_account }}
 
       - name: Call AWS AFT CodePipeline Action
         id: codepipeline
@@ -45,7 +44,7 @@ jobs:
         with:
           aws-region: ${{ env.AWS_REGION }}
           aws-target-account: ${{ steps.account.outputs.account_number }}
-          aws-pipeline-account: ${{ steps.env.outputs.aft_account }}
+          aws-pipeline-account: ${{ steps.platform.outputs.aft_account }}
           commit-sha: ${{ github.sha }}
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
@@ -56,9 +55,9 @@ jobs:
           ## 🚀 CodePipeline Execution Summary
 
           ### Execution Details
-          - **Environment**: ${{ steps.env.outputs.aft_account }}
+          - **Platform**: ${{ steps.platform.outputs.aft_account }}
           - **Target Account**: ${{ steps.account.outputs.account_number }}
-          - **Pipeline Account**: ${{ steps.env.outputs.aft_account }}
+          - **Pipeline Account**: ${{ steps.platform.outputs.aft_account }}
           - **AWS Region**: ${{ env.AWS_REGION }}
 
           ### Commit Information

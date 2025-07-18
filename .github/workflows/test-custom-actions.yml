@@ -1,11 +1,6 @@
 name: Integration Test for changed-files Action and python-ci Workflow
 
 on:
-  push:
-    branches: [master, dev]
-    paths:
-      - '.github/actions/**'
-      - '.github/workflows/**'
   pull_request:
     branches: [master, dev]
     paths:
@@ -95,8 +90,8 @@ jobs:
 
   test-python-ci-workflow:
     needs: find-changes
-    if: contains(needs.find-changes.outputs.files, '.github/workflows/python-ci.yml')
-    uses: ./.github/workflows/python-ci.yml
+    if: contains(needs.find-changes.outputs.files, '.github/workflows/reusable-python-ci.yml')
+    uses: ./.github/workflows/reusable-python-ci.yml
     with:
       python-version: '3.11'
       run-integration-tests: true

@@ -27,13 +27,13 @@ runs:
     - name: Show changed workflows
       shell: bash
       run: |
-        echo "Changed workflows:"
+        echo "[Info] Changed workflows:"
         echo "${{ steps.find-changes.outputs.files }}"
 
     - name: Lint workflows with actionlint
       shell: bash
       run: |
-        echo "🔍 Linting changed workflow files..."
+        echo "[Info] 🔍 Linting changed workflow files..."
         # Install actionlint
         GO111MODULE=on go install github.com/rhysd/actionlint/cmd/actionlint@latest
         export PATH="$HOME/go/bin:$PATH"
@@ -41,7 +41,7 @@ runs:
         # Split files by whitespace and lint each one
         for wf in ${{ steps.find-changes.outputs.files }}; do
           if [[ -n "$wf" ]]; then
-            echo "Linting $wf"
+            echo "[Info] Linting $wf"
             actionlint "$wf"
           fi
         done

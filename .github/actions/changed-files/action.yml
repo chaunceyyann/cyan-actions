@@ -30,5 +30,5 @@ runs:
 
         # Output as space-separated list
         FILES=$(echo "$FILES" | xargs)
-        echo "Changed files: $FILES"
+        echo "[Info] Changed files: $FILES"
         echo "files=$FILES" >> $GITHUB_OUTPUT

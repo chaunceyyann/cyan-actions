@@ -27,97 +27,88 @@ runs:
     - name: Show changed actions
       shell: bash
       run: |
-        echo "Changed actions:"
+        echo "[Info] Changed action files:"
         echo "${{ steps.find-changes.outputs.files }}"
 
     - name: Test JavaScript actions
       id: test-js
       shell: bash
       run: |
-        echo "📦 Testing JavaScript actions..."
-        echo "Changed files: ${{ steps.find-changes.outputs.files }}"
+        echo "[Info] 📦 Testing JavaScript actions..."
 
         # Check if any JavaScript actions exist
         js_actions=""
         for action_file in ${{ steps.find-changes.outputs.files }}; do
-          echo "Checking file: $action_file"
           if [[ -n "$action_file" && -f "$action_file" ]]; then
-            echo "File exists, checking action type..."
             action_type=$(grep -A1 "runs:" "$action_file" | grep "using:" | awk '{print $2}' | tr -d '"')
-            echo "Action type: $action_type"
             if [[ "$action_type" =~ ^node(16|18|20)$ ]]; then
-              echo "Found JavaScript action: $action_file"
+              echo "[Info] Found JavaScript action: $action_file"
               js_actions="$js_actions $action_file"
             fi
-          else
-            echo "File does not exist or is empty: $action_file"
           fi
         done
 
-        echo "JavaScript actions found: '$js_actions'"
-
         if [[ -n "$js_actions" ]]; then
-          echo "Found JavaScript actions: $js_actions"
+          echo "[Info] JavaScript actions to test: $js_actions"
           echo "js_actions_found=true" >> $GITHUB_OUTPUT
           echo "js_actions_list=$js_actions" >> $GITHUB_OUTPUT
 
           # Install Node.js if needed
-          echo "Installing Node.js..."
+          echo "[Info] Installing Node.js..."
           curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
           sudo apt-get install -y nodejs
-          echo "Node.js version: $(node --version)"
-          echo "npm version: $(npm --version)"
+          echo "[Info] Node.js version: $(node --version)"
+          echo "[Info] npm version: $(npm --version)"
 
           # Test each JavaScript action
           for action_file in $js_actions; do
-            echo "Testing JavaScript action: $action_file"
+            echo "[Info] Testing JavaScript action: $action_file"
             action_dir=$(dirname "$action_file")
 
             # Check for package.json
             if [[ -f "$action_dir/package.json" ]]; then
-              echo "✅ package.json found"
+              echo "[Info] ✅ package.json found"
 
               # Validate package.json syntax
               if node -e "JSON.parse(require('fs').readFileSync('$action_dir/package.json', 'utf8'))" 2>/dev/null; then
-                echo "✅ package.json syntax is valid"
+                echo "[Info] ✅ package.json syntax is valid"
               else
-                echo "❌ package.json syntax is invalid"
+                echo "[Error] ❌ package.json syntax is invalid"
                 exit 1
               fi
 
               # Check for main entry point
               main_file=$(node -e "console.log(JSON.parse(require('fs').readFileSync('$action_dir/package.json', 'utf8')).main || '')" 2>/dev/null)
               if [[ -n "$main_file" && -f "$action_dir/$main_file" ]]; then
-                echo "✅ Main entry point found: $main_file"
+                echo "[Info] ✅ Main entry point found: $main_file"
               else
-                echo "❌ Main entry point not found or invalid"
+                echo "[Error] ❌ Main entry point not found or invalid"
                 exit 1
               fi
 
               # Install dependencies and run tests if they exist
               if grep -q '"test"' "$action_dir/package.json"; then
-                echo "Installing dependencies and running tests..."
+                echo "[Info] Installing dependencies and running tests..."
                 cd "$action_dir"
                 npm install
                 npm test
               else
-                echo "No tests configured in package.json"
+                echo "[Info] No tests configured in package.json"
               fi
             else
-              echo "❌ package.json not found in $action_dir"
+              echo "[Error] ❌ package.json not found in $action_dir"
               exit 1
             fi
-            echo "---"
           done
         else
-          echo "No JavaScript actions found"
+          echo "[Info] No JavaScript actions found"
           echo "js_actions_found=false" >> $GITHUB_OUTPUT
         fi
 
     - name: Test composite actions
       shell: bash
       run: |
-        echo "🔧 Testing composite actions..."
+        echo "[Info] 🔧 Testing composite actions..."
 
         # Find composite actions
         composite_actions=""
@@ -125,48 +116,48 @@ runs:
           if [[ -n "$action_file" && -f "$action_file" ]]; then
             action_type=$(grep -A1 "runs:" "$action_file" | grep "using:" | awk '{print $2}' | tr -d '"')
             if [[ "$action_type" == "composite" ]]; then
+              echo "[Info] Found composite action: $action_file"
               composite_actions="$composite_actions $action_file"
             fi
           fi
         done
 
         if [[ -n "$composite_actions" ]]; then
-          echo "Found composite actions: $composite_actions"
+          echo "[Info] Composite actions to test: $composite_actions"
           for action_file in $composite_actions; do
-            echo "Testing composite action: $action_file"
+            echo "[Info] Testing composite action: $action_file"
 
             # Validate YAML structure
             if grep -q "runs:" "$action_file" && grep -q "using:" "$action_file" && grep -q "steps:" "$action_file"; then
-              echo "✅ Valid composite action structure"
+              echo "[Info] ✅ Valid composite action structure"
             else
-              echo "❌ Invalid composite action structure"
+              echo "[Error] ❌ Invalid composite action structure"
               exit 1
             fi
 
             # Test shell scripts in steps
-            echo "Testing shell scripts..."
+            echo "[Info] Testing shell scripts..."
             grep -A5 "shell:" "$action_file" | grep "run:" | while read -r line; do
               script=$(echo "$line" | sed 's/.*run: //')
               if [[ -n "$script" ]]; then
-                echo "Validating script: $script"
+                echo "[Debug] Validating script: $script"
                 # Basic shell syntax check
                 if echo "$script" | bash -n 2>/dev/null; then
-                  echo "✅ Script syntax is valid"
+                  echo "[Info] ✅ Script syntax is valid"
                 else
-                  echo "⚠️  Script syntax may have issues"
+                  echo "[Error] ⚠️  Script syntax may have issues"
                 fi
               fi
             done
-            echo "---"
           done
         else
-          echo "No composite actions found"
+          echo "[Info] No composite actions found"
         fi
 
     - name: Test container actions
       shell: bash
       run: |
-        echo "🐳 Testing container actions..."
+        echo "[Info] 🐳 Testing container actions..."
 
         # Find container actions
         container_actions=""
@@ -174,40 +165,40 @@ runs:
           if [[ -n "$action_file" && -f "$action_file" ]]; then
             action_type=$(grep -A1 "runs:" "$action_file" | grep "using:" | awk '{print $2}' | tr -d '"')
             if [[ "$action_type" == "docker" ]]; then
+              echo "[Info] Found container action: $action_file"
               container_actions="$container_actions $action_file"
             fi
           fi
         done
 
         if [[ -n "$container_actions" ]]; then
-          echo "Found container actions: $container_actions"
+          echo "[Info] Container actions to test: $container_actions"
           for action_file in $container_actions; do
-            echo "Testing container action: $action_file"
+            echo "[Info] Testing container action: $action_file"
 
             # Check for Dockerfile
             action_dir=$(dirname "$action_file")
             if [[ -f "$action_dir/Dockerfile" ]]; then
-              echo "✅ Dockerfile found"
+              echo "[Info] ✅ Dockerfile found"
               # Basic Dockerfile validation - check for common syntax issues
               if grep -q "^FROM " "$action_dir/Dockerfile"; then
-                echo "✅ Dockerfile has valid FROM instruction"
+                echo "[Info] ✅ Dockerfile has valid FROM instruction"
               else
-                echo "❌ Dockerfile missing FROM instruction"
+                echo "[Error] ❌ Dockerfile missing FROM instruction"
                 exit 1
               fi
 
               # Check for common Dockerfile issues
               if grep -q "COPY\|ADD" "$action_dir/Dockerfile"; then
-                echo "✅ Dockerfile has file operations"
+                echo "[Info] ✅ Dockerfile has file operations"
               else
-                echo "⚠️  Dockerfile may be missing file operations"
+                echo "[Error] ⚠️  Dockerfile may be missing file operations"
               fi
             else
-              echo "❌ Dockerfile not found in $action_dir"
+              echo "[Error] ❌ Dockerfile not found in $action_dir"
               exit 1
             fi
-            echo "---"
           done
         else
-          echo "No container actions found"
+          echo "[Info] No container actions found"
         fi

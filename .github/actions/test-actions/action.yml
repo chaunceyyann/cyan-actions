@@ -22,7 +22,7 @@ runs:
       id: find-changes
       uses: ./.github/actions/changed-files
       with:
-        pattern: "^\\.github/actions/.*/.*"
+        pattern: "^\\.github/actions/.*/action\\.yml$"
 
     - name: Show changed actions
       shell: bash

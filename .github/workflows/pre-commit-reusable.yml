@@ -1,0 +1,42 @@
+name: Pre-Commit Checks (Reusable)
+
+on:
+  workflow_call:
+    inputs:
+      python-version:
+        description: 'Python version to use'
+        required: false
+        default: '3.x'
+        type: string
+      fetch-depth:
+        description: 'Git fetch depth for diff calculation'
+        required: false
+        default: '0'
+        type: string
+
+    secrets:
+      # Add any secrets that might be needed for pre-commit hooks
+      pass:
+        required: false
+
+jobs:
+  pre-commit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: ${{ inputs.fetch-depth }}
+      - name: Get changed files
+        uses: ./.github/actions/changed-files
+        id: changed-files
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ inputs.python-version }}
+      - name: Install and run pre-commit
+        run: |
+          chmod +x install-pre-commit.sh
+          if [ -n "${{ steps.changed-files.outputs.files }}" ]; then
+            ./install-pre-commit.sh "${{ steps.changed-files.outputs.files }}"
+          else
+            echo "No files changed, skipping pre-commit checks"
+          fi

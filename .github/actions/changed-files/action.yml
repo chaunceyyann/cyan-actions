@@ -17,54 +17,18 @@ runs:
       shell: bash
       run: |
         if [[ "$GITHUB_EVENT_NAME" == "pull_request" ]]; then
-          echo "This is a pull request. Fetching target branch for comparison."
-          echo "Debug: Current branches and refs available:"
-          git branch -a
-          echo "Debug: Attempting to fetch base ref dev"
-          git fetch origin $GITHUB_BASE_REF --depth=1
-          if [ $? -ne 0 ]; then
-            echo "Error: Fetch failed for $GITHUB_BASE_REF. Attempting unshallow fetch."
-            git fetch origin $GITHUB_BASE_REF --unshallow || git fetch origin $GITHUB_BASE_REF
-          fi
-          echo "Debug: Finding merge base between origin/$GITHUB_BASE_REF and HEAD"
-          MERGE_BASE=$(git merge-base origin/$GITHUB_BASE_REF HEAD || echo "")
-          if [ -z "$MERGE_BASE" ]; then
-            echo "Error: No merge base found between origin/$GITHUB_BASE_REF and HEAD. Falling back to empty list."
-            CHANGED_FILES=""
-          else
-            echo "Debug: Merge base found at $MERGE_BASE"
-            echo "Changed files since merge base with $GITHUB_BASE_REF:"
-            CHANGED_FILES=$(git diff --name-only $MERGE_BASE HEAD)
-          fi
-        elif [[ "$GITHUB_EVENT_NAME" == "push" ]]; then
-          echo "This is a push event. Listing files in the latest commit."
-          CHANGED_FILES=$(git show --name-only --pretty="" HEAD)
+          BASE_REF="${{ github.event.pull_request.base.ref }}"
+          git fetch origin "$BASE_REF"
+          FILES=$(git diff --name-only "origin/$BASE_REF...HEAD")
         else
-          echo "Unknown event type: $GITHUB_EVENT_NAME"
-          CHANGED_FILES=""
+          FILES=$(git diff --name-only ${{ github.event.before }} ${{ github.sha }})
         fi
 
-        # Apply pattern filtering
-        PATTERN="${{ inputs.pattern }}"
-        if [[ -n "$PATTERN" ]]; then
-          FILTERED_FILES=""
-          while IFS= read -r SINGLE_PATTERN || [ -n "$SINGLE_PATTERN" ]; do
-            if [ -n "$SINGLE_PATTERN" ]; then
-              echo "Applying pattern: $SINGLE_PATTERN"
-              MATCHED=$(echo "$CHANGED_FILES" | grep -E "$SINGLE_PATTERN" || true)
-              if [ -n "$MATCHED" ]; then
-                FILTERED_FILES="$FILTERED_FILES$MATCHED"$'\n'
-              fi
-            fi
-          done <<< "${{ inputs.pattern }}"
-          # Remove duplicates and empty lines
-          FILTERED_FILES=$(echo -e "$FILTERED_FILES" | sort | uniq | grep -v "^$")
-        else
-          FILTERED_FILES="$CHANGED_FILES"
+        if [[ -n "${{ inputs.pattern }}" ]]; then
+          FILES=$(echo "$FILES" | grep -E "${{ inputs.pattern }}" || true)
         fi
 
-        # Output as newline-separated list (not space-separated)
-        FILES="$FILTERED_FILES"
+        # Output as space-separated list
+        FILES=$(echo "$FILES" | xargs)
         echo "Changed files: $FILES"
         echo "files=$FILES" >> $GITHUB_OUTPUT
-

@@ -8,18 +8,24 @@ jobs:
   test-actions:
     runs-on: ubuntu-latest
     steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
       - name: Test Custom Actions
         uses: ./.github/actions/test-actions
 
   test-workflows:
     runs-on: ubuntu-latest
     steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
       - name: Test Reusable Workflows
         uses: ./.github/actions/test-workflows
 
   python-ci:
     runs-on: ubuntu-latest
     steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
       - name: Run Python CI
         uses: ./.github/workflows/reusable-python-ci.yml
         with:

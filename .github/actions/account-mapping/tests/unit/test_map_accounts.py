@@ -71,8 +71,10 @@ prod:
         directories = {"src", "tests", "docs"}
         account_types = map_accounts.determine_account_types(directories)
 
-        expected = ["src", "tests"]
-        self.assertEqual(account_types, expected)
+        # Check that both expected account types are present (order doesn't matter)
+        self.assertIn("src", account_types)
+        self.assertIn("tests", account_types)
+        self.assertEqual(len(account_types), 2)
 
     def test_determine_account_types_no_match(self):
         """Test determining account types with no matching directories."""
@@ -103,7 +105,10 @@ prod:
             map_accounts.main()
             output = mock_stdout.getvalue()
 
-            self.assertIn("account_number=123456789012,987654321098", output)
+            # Check that both account numbers are present (order doesn't matter)
+            self.assertIn("123456789012", output)
+            self.assertIn("987654321098", output)
+            self.assertIn("account_number=", output)
 
     @patch("os.environ.get")
     def test_main_no_changed_files(self, mock_env_get):

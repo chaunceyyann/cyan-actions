@@ -39,8 +39,9 @@ prod:
         env["ENVIRONMENT"] = "dev"
 
         # Run the script
+        script_path = self.script_dir / "map_accounts.py"
         result = subprocess.run(
-            ["python3", str(self.script_dir / "map_accounts.py")],
+            ["python", str(script_path)],
             capture_output=True,
             text=True,
             env=env,
@@ -64,7 +65,7 @@ prod:
         env["ENVIRONMENT"] = "dev"
 
         result = subprocess.run(
-            ["python3", str(self.script_dir / "map_accounts.py")],
+            ["python", str(self.script_dir / "map_accounts.py")],
             capture_output=True,
             text=True,
             env=env,
@@ -81,7 +82,7 @@ prod:
         env["ENVIRONMENT"] = "dev"
 
         result = subprocess.run(
-            ["python3", str(self.script_dir / "map_accounts.py")],
+            ["python", str(self.script_dir / "map_accounts.py")],
             capture_output=True,
             text=True,
             env=env,
@@ -99,7 +100,7 @@ prod:
         env["ENVIRONMENT"] = "unknown"
 
         result = subprocess.run(
-            ["python3", str(self.script_dir / "map_accounts.py")],
+            ["python", str(self.script_dir / "map_accounts.py")],
             capture_output=True,
             text=True,
             env=env,
@@ -116,7 +117,7 @@ prod:
         env["ENVIRONMENT"] = "dev"
 
         result = subprocess.run(
-            ["python3", str(self.script_dir / "map_accounts.py")],
+            ["python", str(self.script_dir / "map_accounts.py")],
             capture_output=True,
             text=True,
             env=env,
@@ -133,7 +134,7 @@ prod:
         env["ENVIRONMENT"] = "prod"
 
         result = subprocess.run(
-            ["python3", str(self.script_dir / "map_accounts.py")],
+            ["python", str(self.script_dir / "map_accounts.py")],
             capture_output=True,
             text=True,
             env=env,

@@ -1,4 +1,4 @@
-# Account mappings for different environments and file types
+
 dev:
   src: "123456789012"
   tests: "987654321098"

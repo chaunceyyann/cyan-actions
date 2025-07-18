@@ -1,12 +1,12 @@
 repos:
-  # Local hooks (our custom hooks)
+    # Local hooks (our custom hooks)
   - repo: local
     hooks:
-      - id: prepare-commit-msg
-        name: Prepare Commit Message
-        entry: bash hooks/prepare-commit-msg
+      - id: commit-msg
+        name: Commit Message
+        entry: bash hooks/commit-msg
         language: system
-        stages: [prepare-commit-msg]
+        stages: [commit-msg]
         description: Automatically add JIRA ticket from branch name to commit message
 
   # Standard pre-commit hooks

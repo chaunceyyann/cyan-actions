@@ -107,7 +107,21 @@ git commit --allow-empty -m "test commit"
 
 ## Using the JIRA Commit Hook
 
-The `prepare-commit-msg` hook automatically adds JIRA ticket numbers to commit messages based on your branch name.
+The `commit-msg` hook automatically adds JIRA ticket numbers to commit messages based on your branch name.
+
+### Git Hook Execution Order
+
+```bash
+git commit
+├── 1. pre-commit hooks run
+├── 2. prepare-commit-msg hook runs
+├── 3. Git opens editor with commit message
+├── 4. User edits message and saves/closes editor
+├── 5. commit-msg hook runs ← This is where we can reliably modify
+└── 6. Git creates the commit
+```
+
+**Why we use `commit-msg`**: This hook runs after the editor closes but before the commit is created, ensuring the JIRA ticket is reliably added regardless of how you commit.
 
 ### Branch Naming Examples
 

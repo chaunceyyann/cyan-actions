@@ -99,4 +99,4 @@ jobs:
     uses: ./.github/workflows/python-ci.yml
     with:
       python-version: '3.11'
-      run-integration-tests: true 
+      run-integration-tests: true

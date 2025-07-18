@@ -1,6 +1,6 @@
 # this is a github action that takes in aws-target-account, aws-pipeline-account, aws-region, and the full commit sha to starts a aws codepipeline
 # this pipeline name is aft-customization-plan-only, it takes VENDED_ACCOUNT_ID which is the target account number, and --source-revisions with revisonType=COMMIT_ID
-# we can trigger the run by aws cli so we need to setup the credentional using id and secrets 
+# we can trigger the run by aws cli so we need to setup the credentional using id and secrets
 # full commit sha need to be retrived in this pr, and it needs to full sha
 
 name: 'Start AWS CodePipeline Plan-Only'
@@ -57,10 +57,10 @@ runs:
           --source-revisions "actionName=Source,revisionType=COMMIT_ID,revisionValue=${{ inputs.commit-sha }}" \
           --variables "name=VENDED_ACCOUNT_ID,value=${{ inputs.aws-target-account }}" \
           --region ${{ inputs.aws-region }})
-        
+
         EXECUTION_ID=$(echo "$RESPONSE" | jq -r '.pipelineExecutionId')
         echo "execution_id=$EXECUTION_ID" >> $GITHUB_OUTPUT
-        
+
         if [ $? -eq 0 ] && [ "$EXECUTION_ID" != "null" ]; then
           echo "Pipeline execution started successfully."
           echo "Execution ID: $EXECUTION_ID"
@@ -74,7 +74,7 @@ runs:
       id: pipeline-info
       run: |
         EXECUTION_ID="${{ steps.codepipeline.outputs.execution_id }}"
-        
+
         if [ "$EXECUTION_ID" != "null" ] && [ -n "$EXECUTION_ID" ]; then
           # Get execution details
           STATUS=$(aws codepipeline get-pipeline-execution \
@@ -83,14 +83,14 @@ runs:
             --region ${{ inputs.aws-region }} \
             --query 'pipelineExecution.status' \
             --output text)
-          
+
           START_TIME=$(aws codepipeline get-pipeline-execution \
             --pipeline-name aft-customization-plan-only \
             --pipeline-execution-id "$EXECUTION_ID" \
             --region ${{ inputs.aws-region }} \
             --query 'pipelineExecution.startTime' \
             --output text)
-          
+
           echo "status=$STATUS" >> $GITHUB_OUTPUT
           echo "start_time=$START_TIME" >> $GITHUB_OUTPUT
         else

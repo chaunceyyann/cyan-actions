@@ -5,4 +5,4 @@ prod_account_number:
 
 dev_account_number:
   src: dev_src_account
-  tests: dev_tests_account 
+  tests: dev_tests_account

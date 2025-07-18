@@ -44,19 +44,21 @@ if [ -n "$JIRA_TICKET" ] && [[ "$JIRA_TICKET" =~ ^[A-Z]+[0-9]+$ ]]; then
     JIRA_TICKET=$(echo "$JIRA_TICKET" | sed 's/\([A-Z]*\)\([0-9]*\)/\1-\2/')
 fi
 
-# If we found a JIRA ticket, check if it's already in the commit message
+# If we found a JIRA_TICKET, check if it's already in the commit message
 if [ -n "$JIRA_TICKET" ]; then
     # Check if JIRA ticket is already present in the commit message
-    if ! echo "$COMMIT_MSG" | grep -q "$JIRA_TICKET"; then
-        # Check if the message is empty or just template comments
-        if [ -z "$COMMIT_MSG" ] || echo "$COMMIT_MSG" | grep -q "^#" || [ "$(echo "$COMMIT_MSG" | wc -w)" -eq 0 ]; then
-            # For empty messages, just add the JIRA ticket
-            echo "[$JIRA_TICKET] " > "$COMMIT_MSG_FILE"
-            echo "✅ Added JIRA ticket [$JIRA_TICKET] to empty commit message from branch: $BRANCH_NAME" >&2
-        else
-            # For non-empty messages, prepend JIRA ticket (handle spaces properly)
-            printf "[%s] %s\n" "$JIRA_TICKET" "$COMMIT_MSG" > "$COMMIT_MSG_FILE"
-            echo "✅ Added JIRA ticket [$JIRA_TICKET] to commit message from branch: $BRANCH_NAME" >&2
-        fi
+    if ! grep -Fq "[$JIRA_TICKET]" "$COMMIT_MSG_FILE"; then
+        # Use a temporary file to safely prepend the ticket
+        TMP_FILE=$(mktemp)
+        # The trap ensures the temp file is removed on exit, error, or interrupt
+        trap 'rm -f "$TMP_FILE"' EXIT HUP INT QUIT TERM
+
+        # Prepend the JIRA ticket to the original message content
+        printf "[%s] %s" "$JIRA_TICKET" "$COMMIT_MSG" > "$TMP_FILE"
+
+        # Overwrite the original commit message file
+        mv "$TMP_FILE" "$COMMIT_MSG_FILE"
+
+        echo "✅ Added JIRA ticket [$JIRA_TICKET] to commit message from branch: $BRANCH_NAME" >&2
     fi
 fi

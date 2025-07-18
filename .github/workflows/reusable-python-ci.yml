@@ -116,7 +116,7 @@ jobs:
           fi
 
   integration-test:
-    if: ${{ inputs.run-integration-tests == 'true' }}
+    if: ${{ inputs.run-integration-tests }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code

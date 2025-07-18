@@ -26,3 +26,8 @@ jobs:
     with:
       python-version: '3.11'
       run-integration-tests: true
+      test-directory: '.github/actions'
+      requirements-file: ''
+      install-command: |
+        # Install dependencies for each action that has requirements.txt
+        find .github/actions -name "requirements.txt" -execdir pip install -r requirements.txt \;

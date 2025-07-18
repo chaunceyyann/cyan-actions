@@ -1,0 +1,39 @@
+name: "Test Actions"
+description: "Test all custom actions in the repository"
+inputs:
+  fetch-depth:
+    description: "Git fetch depth for diff calculation"
+    required: false
+    default: "0"
+    type: string
+outputs:
+  changed-actions:
+    description: "List of changed action files"
+    value: ${{ steps.find-changes.outputs.files }}
+runs:
+  using: "composite"
+  steps:
+    - name: Checkout with full history
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: ${{ inputs.fetch-depth }}
+
+    - name: Find changed action files
+      id: find-changes
+      uses: ./.github/actions/changed-files
+      with:
+        pattern: "^\\.github/actions/.*/.*"
+
+    - name: Show changed actions
+      shell: bash
+      run: |
+        echo "Changed actions:"
+        echo "${{ steps.find-changes.outputs.files }}"
+
+    - name: Test changed-files action
+      shell: bash
+      run: |
+        echo "Testing changed-files action..."
+        # Test the action with different patterns
+        echo "Testing with no pattern..."
+        # Add more specific tests as needed

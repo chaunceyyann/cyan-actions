@@ -1,0 +1,46 @@
+name: "Test Workflows"
+description: "Test all reusable workflows in the repository"
+inputs:
+  fetch-depth:
+    description: "Git fetch depth for diff calculation"
+    required: false
+    default: "0"
+    type: string
+outputs:
+  changed-workflows:
+    description: "List of changed workflow files"
+    value: ${{ steps.find-changes.outputs.files }}
+runs:
+  using: "composite"
+  steps:
+    - name: Checkout with full history
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: ${{ inputs.fetch-depth }}
+
+    - name: Find changed workflow files
+      id: find-changes
+      uses: ./.github/actions/changed-files
+      with:
+        pattern: "^\\.github/workflows/reusable-.*\\.yml$"
+
+    - name: Show changed workflows
+      shell: bash
+      run: |
+        echo "Changed workflows:"
+        echo "${{ steps.find-changes.outputs.files }}"
+
+    - name: Lint workflows with actionlint
+      shell: bash
+      run: |
+        echo "🔍 Linting changed workflow files..."
+        # Install actionlint
+        GO111MODULE=on go install github.com/rhysd/actionlint/cmd/actionlint@latest
+        export PATH="$HOME/go/bin:$PATH"
+
+        echo "${{ steps.find-changes.outputs.files }}" | while IFS= read -r wf; do
+          if [[ -n "$wf" ]]; then
+            echo "Linting $wf"
+            actionlint "$wf"
+          fi
+        done

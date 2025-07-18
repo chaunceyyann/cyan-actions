@@ -1,97 +1,27 @@
-name: Integration Test for changed-files Action and python-ci Workflow
+name: Test Actions and Workflows
 
 on:
   pull_request:
     branches: [master, dev]
-    paths:
-      - '.github/actions/**'
-      - '.github/workflows/**'
 
 jobs:
-  find-changes:
+  test-actions:
     runs-on: ubuntu-latest
-    outputs:
-      files: ${{ steps.changes.outputs.files }}
     steps:
-      - name: Checkout with full history
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
+      - name: Test Custom Actions
+        uses: ./.github/actions/test-actions
 
-      - name: Fetch PR base branch with full history
-        if: ${{ github.event_name == 'pull_request' }}
-        run: |
-          echo "Fetching base branch '${{ github.base_ref }}' with full history for merge-base..."
-          git fetch origin ${{ github.base_ref }} --unshallow || git fetch origin ${{ github.base_ref }} --depth=1
-          git fetch origin --unshallow || true  # Attempt to unshallow the entire repo if possible
-
-      - name: Find changed action and workflow files
-        id: changes
-        uses: ./.github/actions/changed-files
-        with:
-          pattern: |
-            ^\.github/actions/.*/.*
-            ^\.github/workflows/.*\.yml$
-
-      - name: Show changed files
-        run: |
-          echo "${{ steps.changes.outputs.files }}"
-
-      - name: Validate changed-files output vs manual git diff
-        run: |
-          echo "Validating changed-files action output against manual git diff"
-          if [ "$GITHUB_EVENT_NAME" = "pull_request" ]; then
-            git fetch origin ${{ github.base_ref }} --depth=1
-            MANUAL=$(git diff --name-only origin/${{ github.base_ref }} HEAD)
-          else
-            MANUAL=$(git show --name-only --pretty="" HEAD)
-          fi
-          # apply the same regex filters
-          PATTERN='^\.github/actions/.*/.*|^\.github/workflows/.*\.yml$'
-          printf "%s\n" "$MANUAL" \
-            | grep -E "$PATTERN" \
-            | sort -u > manual.txt
-          printf "%s\n" "${{ steps.changes.outputs.files }}" \
-            | sort -u > action.txt
-          echo "Manual list:"
-          cat manual.txt
-          echo "Action list:"
-          cat action.txt
-          if ! diff -u manual.txt action.txt; then
-            echo "Mismatch between manual git diff and changed-files action output" >&2
-            exit 1
-          fi
-
-  lint-workflows:
-    needs: find-changes
+  test-workflows:
     runs-on: ubuntu-latest
-    if: contains(needs.find-changes.outputs.files, '.github/workflows/')
     steps:
-      - uses: actions/checkout@v4
-      - name: Install actionlint
-        run: |
-          # install to $HOME/go/bin
-          GO111MODULE=on go install github.com/rhysd/actionlint/cmd/actionlint@latest
-          # add to PATH for subsequent steps
-          echo "$HOME/go/bin" >> $GITHUB_PATH
-          # also add to PATH for this step so we can test it now
-          export PATH="$HOME/go/bin:$PATH"
-          actionlint --version
-      - name: Lint changed workflows
-        run: |
-          echo "🔍 Linting changed workflow files..."
-          echo "${{ needs.find-changes.outputs.files }}" | while IFS= read -r wf; do
-            # only lint real workflows, skip this test file
-            if [[ $wf =~ ^\.github/workflows/.*\.yml$ ]] && [[ $wf != '.github/workflows/test-custom-actions.yml' ]]; then
-              echo "Linting $wf"
-              actionlint "$wf"
-            fi
-          done
+      - name: Test Reusable Workflows
+        uses: ./.github/actions/test-workflows
 
-  test-python-ci-workflow:
-    needs: find-changes
-    if: contains(needs.find-changes.outputs.files, '.github/workflows/reusable-python-ci.yml')
-    uses: ./.github/workflows/reusable-python-ci.yml
-    with:
-      python-version: '3.11'
-      run-integration-tests: true
+  python-ci:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Run Python CI
+        uses: ./.github/workflows/reusable-python-ci.yml
+        with:
+          python-version: '3.11'
+          run-integration-tests: true

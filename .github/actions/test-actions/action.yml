@@ -73,7 +73,7 @@ runs:
               if node -e "JSON.parse(require('fs').readFileSync('$action_dir/package.json', 'utf8'))" 2>/dev/null; then
                 echo "[Info] ✅ package.json syntax is valid"
               else
-                echo "[Error] ❌ package.json syntax is invalid"
+                echo "[Error] ❌ package.json syntax is invalid in $action_dir/package.json"
                 exit 1
               fi
 
@@ -82,7 +82,8 @@ runs:
               if [[ -n "$main_file" && -f "$action_dir/$main_file" ]]; then
                 echo "[Info] ✅ Main entry point found: $main_file"
               else
-                echo "[Error] ❌ Main entry point not found or invalid"
+                echo "[Error] ❌ Main entry point not found or invalid in $action_dir/package.json"
+                echo "[Debug] Expected main file: $main_file"
                 exit 1
               fi
 
@@ -137,18 +138,28 @@ runs:
 
             # Test shell scripts in steps
             echo "[Info] Testing shell scripts..."
-            grep -A5 "shell:" "$action_file" | grep "run:" | while read -r line; do
-              script=$(echo "$line" | sed 's/.*run: //')
-              if [[ -n "$script" ]]; then
-                echo "[Debug] Validating script: $script"
-                # Basic shell syntax check
-                if echo "$script" | bash -n 2>/dev/null; then
-                  echo "[Info] ✅ Script syntax is valid"
-                else
-                  echo "[Error] ⚠️  Script syntax may have issues"
+            line_number=0
+            while IFS= read -r line; do
+              ((line_number++))
+              if [[ "$line" =~ shell: ]]; then
+                # Found a shell step, check the next line for run:
+                read -r next_line
+                ((line_number++))
+                if [[ "$next_line" =~ run: ]]; then
+                  script=$(echo "$next_line" | sed 's/.*run: //')
+                  if [[ -n "$script" ]]; then
+                    echo "[Debug] Validating script at line $line_number: $script"
+                    # Basic shell syntax check
+                    if echo "$script" | bash -n 2>/dev/null; then
+                      echo "[Info] ✅ Script syntax is valid (line $line_number)"
+                    else
+                      echo "[Error] ⚠️  Script syntax may have issues in $action_file at line $line_number"
+                      echo "[Debug] Script: $script"
+                    fi
+                  fi
                 fi
               fi
-            done
+            done < "$action_file"
           done
         else
           echo "[Info] No composite actions found"
@@ -179,12 +190,12 @@ runs:
             # Check for Dockerfile
             action_dir=$(dirname "$action_file")
             if [[ -f "$action_dir/Dockerfile" ]]; then
-              echo "[Info] ✅ Dockerfile found"
+              echo "[Info] ✅ Dockerfile found: $action_dir/Dockerfile"
               # Basic Dockerfile validation - check for common syntax issues
               if grep -q "^FROM " "$action_dir/Dockerfile"; then
                 echo "[Info] ✅ Dockerfile has valid FROM instruction"
               else
-                echo "[Error] ❌ Dockerfile missing FROM instruction"
+                echo "[Error] ❌ Dockerfile missing FROM instruction in $action_dir/Dockerfile"
                 exit 1
               fi
 
@@ -192,10 +203,10 @@ runs:
               if grep -q "COPY\|ADD" "$action_dir/Dockerfile"; then
                 echo "[Info] ✅ Dockerfile has file operations"
               else
-                echo "[Error] ⚠️  Dockerfile may be missing file operations"
+                echo "[Error] ⚠️  Dockerfile may be missing file operations in $action_dir/Dockerfile"
               fi
             else
-              echo "[Error] ❌ Dockerfile not found in $action_dir"
+              echo "[Error] ❌ Dockerfile not found in $action_dir (expected: $action_dir/Dockerfile)"
               exit 1
             fi
           done

@@ -136,9 +136,9 @@ runs:
               exit 1
             fi
 
-            # Test shell scripts in steps
+                        # Test shell scripts in steps
             echo "[Info] Testing shell scripts..."
-            # Use awk to find shell scripts with line numbers
+            # Use awk to find shell scripts with line numbers and handle multi-line scripts
             awk '
               /shell:/ {
                 in_shell = 1;
@@ -146,11 +146,33 @@ runs:
                 next
               }
               in_shell && /run:/ {
-                script = substr($0, index($0, "run: ") + 5);
-                if (length(script) > 0) {
-                  print "LINE:" NR ":" script;
+                if ($0 ~ /run: \|/) {
+                  # Multi-line script starting with |
+                  in_script = 1;
+                  script_start_line = NR;
+                  script = "";
+                  next;
+                } else {
+                  # Single-line script
+                  script = substr($0, index($0, "run: ") + 5);
+                  if (length(script) > 0) {
+                    print "LINE:" NR ":" script;
+                  }
+                  in_shell = 0;
                 }
-                in_shell = 0;
+              }
+              in_script {
+                if ($0 ~ /^[[:space:]]*[a-zA-Z]/ && !($0 ~ /^[[:space:]]*-/)) {
+                  # End of script (new step or section)
+                  if (length(script) > 0) {
+                    print "LINE:" script_start_line ":" script;
+                  }
+                  in_script = 0;
+                  in_shell = 0;
+                } else {
+                  # Continue collecting script lines
+                  script = script "\n" $0;
+                }
               }
             ' "$action_file" | while IFS=: read -r prefix line_num script; do
               if [[ "$prefix" == "LINE" ]]; then

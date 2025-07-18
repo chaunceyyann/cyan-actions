@@ -366,7 +366,7 @@ chmod +x install-pre-commit.sh
 
 ### Pre-commit Checks Workflow
 
-The `.github/workflows/pre-commit-reusable.yml` provides a reusable workflow that can be used in any repository to enforce pre-commit checks on changed files.
+The `.github/workflows/reusable-pre-commit.yml` provides a reusable workflow that can be used in any repository to enforce pre-commit checks on changed files.
 
 **Usage in other repositories:**
 
@@ -382,7 +382,7 @@ on:
 
 jobs:
   pre-commit:
-    uses: your-username/cyan-actions/.github/workflows/pre-commit-reusable.yml@main
+    uses: your-username/cyan-actions/.github/workflows/reusable-pre-commit.yml@main
     with:
       python-version: '3.x'
       fetch-depth: '0'

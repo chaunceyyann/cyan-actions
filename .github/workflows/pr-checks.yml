@@ -6,13 +6,13 @@ on:
 
 jobs:
   pre-commit:
-    uses: ./.github/workflows/pre-commit-reusable.yml
+    uses: ./.github/workflows/reusable-pre-commit.yml
     with:
       python-version: '3.x'
       fetch-depth: '0'
 
   terraform-lint:
-    uses: ./.github/workflows/terraform-lint-reusable.yml
+    uses: ./.github/workflows/reusable-terraform-lint.yml
     with:
       working-directory: '.'
       fetch-depth: '0'

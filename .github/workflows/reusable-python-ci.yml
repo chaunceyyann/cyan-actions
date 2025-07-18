@@ -26,13 +26,30 @@ jobs:
         with:
           python-version: ${{ inputs.python-version }}
 
+      - name: Find changed Python files
+        id: find-changed-python
+        uses: ./.github/actions/changed-files
+        with:
+          pattern: "^\\.github/actions/.*\\.py$"
+
       - name: Install lint dependencies
         run: |
           pip install flake8
 
-      - name: Run flake8
+      - name: Run flake8 on changed files
         run: |
-          flake8 .
+          # Lint only changed Python files
+          if [[ -n "${{ steps.find-changed-python.outputs.files }}" ]]; then
+            echo "Linting changed Python files: ${{ steps.find-changed-python.outputs.files }}"
+            for file in ${{ steps.find-changed-python.outputs.files }}; do
+              if [[ -f "$file" ]]; then
+                echo "Linting $file"
+                flake8 "$file" --max-line-length=88 --extend-ignore=E203,W503
+              fi
+            done
+          else
+            echo "No Python files changed"
+          fi
 
   unit-test:
     runs-on: ubuntu-latest
@@ -45,13 +62,40 @@ jobs:
         with:
           python-version: ${{ inputs.python-version }}
 
+      - name: Find changed Python files
+        id: find-changed-python
+        uses: ./.github/actions/changed-files
+        with:
+          pattern: "^\\.github/actions/.*\\.py$"
+
       - name: Install test dependencies
         run: |
           pip install pytest
 
-      - name: Run unit tests
+      - name: Install action dependencies
         run: |
-          pytest tests/unit
+          # Install dependencies for all actions that have requirements.txt
+          find .github/actions -name "requirements.txt" -execdir pip install -r requirements.txt \;
+
+      - name: Run unit tests for changed actions
+        run: |
+          # Find and run unit tests for actions with changed Python files
+          if [[ -n "${{ steps.find-changed-python.outputs.files }}" ]]; then
+            echo "Running unit tests for changed Python files: ${{ steps.find-changed-python.outputs.files }}"
+            for file in ${{ steps.find-changed-python.outputs.files }}; do
+              if [[ -f "$file" ]]; then
+                action_dir=$(dirname "$file")
+                if [[ -d "$action_dir/tests/unit" ]]; then
+                  echo "Running unit tests for $action_dir"
+                  cd "$action_dir"
+                  python -m pytest tests/unit/ -v
+                  cd - > /dev/null
+                fi
+              fi
+            done
+          else
+            echo "No Python files changed, skipping unit tests"
+          fi
 
   integration-test:
     if: ${{ inputs.run-integration-tests == 'true' }}
@@ -65,10 +109,37 @@ jobs:
         with:
           python-version: ${{ inputs.python-version }}
 
+      - name: Find changed Python files
+        id: find-changed-python
+        uses: ./.github/actions/changed-files
+        with:
+          pattern: "^\\.github/actions/.*\\.py$"
+
       - name: Install test dependencies
         run: |
           pip install pytest
 
-      - name: Run integration tests
+      - name: Install action dependencies
         run: |
-          pytest tests/integration
+          # Install dependencies for all actions that have requirements.txt
+          find .github/actions -name "requirements.txt" -execdir pip install -r requirements.txt \;
+
+      - name: Run integration tests for changed actions
+        run: |
+          # Find and run integration tests for actions with changed Python files
+          if [[ -n "${{ steps.find-changed-python.outputs.files }}" ]]; then
+            echo "Running integration tests for changed Python files: ${{ steps.find-changed-python.outputs.files }}"
+            for file in ${{ steps.find-changed-python.outputs.files }}; do
+              if [[ -f "$file" ]]; then
+                action_dir=$(dirname "$file")
+                if [[ -d "$action_dir/tests/integration" ]]; then
+                  echo "Running integration tests for $action_dir"
+                  cd "$action_dir"
+                  python -m pytest tests/integration/ -v
+                  cd - > /dev/null
+                fi
+              fi
+            done
+          else
+            echo "No Python files changed, skipping integration tests"
+          fi

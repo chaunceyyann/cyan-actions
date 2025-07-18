@@ -10,8 +10,6 @@ jobs:
     with:
       python-version: '3.x'
       fetch-depth: '0'
-      include-terraform: 'true'
-      terraform-working-dir: '.'
 
   terraform-lint:
     uses: ./.github/workflows/terraform-lint-reusable.yml

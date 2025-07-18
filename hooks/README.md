@@ -5,6 +5,37 @@
 
 This directory contains Git hooks for automated development workflow improvements.
 
+---
+
+## 🚀 Using the JIRA Commit Message Hook in Other Repositories
+
+You can use the JIRA commit message hook from this repository in your own projects via [pre-commit](https://pre-commit.com/):
+
+1. **Add to your `.pre-commit-config.yaml`:**
+
+   ```yaml
+   repos:
+     # Use the shared JIRA commit-msg hook
+     - repo: https://github.com/chaunceyyann/cyan-actions
+       rev: dev  # or a specific tag/commit
+       hooks:
+         - id: jira-commit-msg
+     # ... other hooks ...
+   ```
+
+   > **Note:** Remove any previous `repo: local` block for `commit-msg` to avoid conflicts.
+
+2. **Install the commit-msg hook:**
+
+   ```bash
+   pre-commit install --hook-type commit-msg
+   ```
+
+3. **Make a commit:**
+   - The hook will automatically prepend the JIRA ticket from your branch name to your commit message.
+
+---
+
 ## 📋 Available Hooks
 
 ### [commit-msg](commit-msg)

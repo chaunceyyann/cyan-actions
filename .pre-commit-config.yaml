@@ -2,12 +2,12 @@ repos:
     # Local hooks (our custom hooks)
   - repo: local
     hooks:
-      - id: commit-msg
-        name: Commit Message
-        entry: bash hooks/commit-msg
-        language: system
+      - id: jira-commit-msg
+        name: JIRA Commit Message Hook
+        entry: hooks/commit-msg
+        language: script
         stages: [commit-msg]
-        description: Automatically add JIRA ticket from branch name to commit message
+        description: Prepends JIRA ticket numbers from branch names to commit messages.
 
   # Standard pre-commit hooks
   - repo: https://github.com/pre-commit/pre-commit-hooks

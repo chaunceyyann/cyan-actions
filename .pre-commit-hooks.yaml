@@ -1,0 +1,8 @@
+- id: jira-commit-msg
+  name: JIRA Commit Message Hook
+  entry: bash hooks/commit-msg
+  language: script
+  stages: [commit-msg]
+  description: >
+    Prepends JIRA ticket numbers from branch names to commit messages.
+    Skips merge/revert/WIP/Draft commits. Supports standard and custom JIRA patterns.

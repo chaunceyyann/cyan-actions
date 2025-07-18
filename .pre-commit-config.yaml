@@ -1,13 +1,4 @@
 repos:
-    # Local hooks (our custom hooks)
-  - repo: local
-    hooks:
-      - id: commit-msg
-        name: Commit Message
-        entry: bash hooks/commit-msg
-        language: system
-        stages: [commit-msg]
-        description: Automatically add JIRA ticket from branch name to commit message
 
   # Standard pre-commit hooks
   - repo: https://github.com/pre-commit/pre-commit-hooks
@@ -69,3 +60,8 @@ repos:
         description: Lint Terraform files with TFLint
         args:
           - --args=--format=compact
+
+  - repo: https://github.com/chaunceyyann/cyan-actions
+    rev: v0.1  # or main, or a tag/commit hash
+    hooks:
+      - id: jira-commit-msg

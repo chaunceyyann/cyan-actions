@@ -38,7 +38,8 @@ runs:
         GO111MODULE=on go install github.com/rhysd/actionlint/cmd/actionlint@latest
         export PATH="$HOME/go/bin:$PATH"
 
-        echo "${{ steps.find-changes.outputs.files }}" | while IFS= read -r wf; do
+        # Split files by whitespace and lint each one
+        for wf in ${{ steps.find-changes.outputs.files }}; do
           if [[ -n "$wf" ]]; then
             echo "Linting $wf"
             actionlint "$wf"

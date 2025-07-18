@@ -138,28 +138,32 @@ runs:
 
             # Test shell scripts in steps
             echo "[Info] Testing shell scripts..."
-            line_number=0
-            while IFS= read -r line; do
-              ((line_number++))
-              if [[ "$line" =~ shell: ]]; then
-                # Found a shell step, check the next line for run:
-                read -r next_line
-                ((line_number++))
-                if [[ "$next_line" =~ run: ]]; then
-                  script=$(echo "$next_line" | sed 's/.*run: //')
-                  if [[ -n "$script" ]]; then
-                    echo "[Debug] Validating script at line $line_number: $script"
-                    # Basic shell syntax check
-                    if echo "$script" | bash -n 2>/dev/null; then
-                      echo "[Info] ✅ Script syntax is valid (line $line_number)"
-                    else
-                      echo "[Error] ⚠️  Script syntax may have issues in $action_file at line $line_number"
-                      echo "[Debug] Script: $script"
-                    fi
-                  fi
+            # Use awk to find shell scripts with line numbers
+            awk '
+              /shell:/ {
+                in_shell = 1;
+                shell_line = NR;
+                next
+              }
+              in_shell && /run:/ {
+                script = substr($0, index($0, "run: ") + 5);
+                if (length(script) > 0) {
+                  print "LINE:" NR ":" script;
+                }
+                in_shell = 0;
+              }
+            ' "$action_file" | while IFS=: read -r prefix line_num script; do
+              if [[ "$prefix" == "LINE" ]]; then
+                echo "[Debug] Validating script at line $line_num: $script"
+                # Basic shell syntax check
+                if echo "$script" | bash -n 2>/dev/null; then
+                  echo "[Info] ✅ Script syntax is valid (line $line_num)"
+                else
+                  echo "[Error] ⚠️  Script syntax may have issues in $action_file at line $line_num"
+                  echo "[Debug] Script: $script"
                 fi
               fi
-            done < "$action_file"
+            done
           done
         else
           echo "[Info] No composite actions found"

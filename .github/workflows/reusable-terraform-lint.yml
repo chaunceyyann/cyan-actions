@@ -32,13 +32,13 @@ jobs:
         with:
           fetch-depth: ${{ inputs.fetch-depth }}
       - name: Get Terraform files
-        uses: ./.github/actions/changed-files
+        uses: chaunceyyann/cyan-actions/.github/actions/changed-files@dev
         id: terraform-files
         with:
           pattern: "\\.tf$"
       - name: Run TFLint
         if: steps.terraform-files.outputs.files != ''
-        uses: ./.github/actions/tflint
+        uses: chaunceyyann/cyan-actions/.github/actions/tflint@dev
         with:
           tflint-version: ${{ inputs.tflint-version }}
           aws-ruleset-version: ${{ inputs.aws-ruleset-version }}

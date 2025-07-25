@@ -27,7 +27,7 @@ jobs:
         with:
           fetch-depth: ${{ inputs.fetch-depth }}
       - name: Get changed files
-        uses: ./.github/actions/changed-files
+        uses: chaunceyyann/cyan-actions/.github/actions/changed-files@dev
         id: changed-files
       - uses: actions/setup-python@v5
         with:

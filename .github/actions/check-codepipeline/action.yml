@@ -1,0 +1,85 @@
+name: Check CodePipeline Status
+
+description: |
+  Uses AWS CLI to check CodePipeline execution status with polling.
+  Waits for pipeline to complete (not InProgress) with 20-minute timeout.
+
+inputs:
+  execution-id:
+    description: 'CodePipeline execution ID to check'
+    required: true
+    type: string
+  timeout-minutes:
+    description: 'Timeout in minutes (default: 20)'
+    required: false
+    default: '20'
+    type: string
+  poll-interval-seconds:
+    description: 'Polling interval in seconds (default: 20)'
+    required: false
+    default: '20'
+    type: string
+  aws-region:
+    description: 'AWS region (default: us-east-1)'
+    required: false
+    default: 'us-east-1'
+    type: string
+
+outputs:
+  status:
+    description: 'Final status of the CodePipeline execution'
+    value: ${{ steps.check-pipeline.outputs.status }}
+  execution-id:
+    description: 'The execution ID that was checked'
+    value: ${{ inputs.execution-id }}
+
+runs:
+  using: "composite"
+  steps:
+    - name: Check CodePipeline Status
+      id: check-pipeline
+      shell: bash
+      run: |
+        EXECUTION_ID="${{ inputs.execution-id }}"
+        TIMEOUT_MINUTES="${{ inputs.timeout-minutes }}"
+        POLL_INTERVAL="${{ inputs.poll-interval-seconds }}"
+        AWS_REGION="${{ inputs.aws-region }}"
+
+        TIMEOUT_SECONDS=$((TIMEOUT_MINUTES * 60))
+        ELAPSED=0
+        START_TIME=$(date +%s)
+
+        echo "Checking CodePipeline execution: $EXECUTION_ID (timeout: ${TIMEOUT_MINUTES}m, region: $AWS_REGION)"
+
+        while true; do
+          CURRENT_TIME=$(date +%s)
+          ELAPSED=$((CURRENT_TIME - START_TIME))
+
+          if [ $ELAPSED -ge $TIMEOUT_SECONDS ]; then
+            echo "Timeout reached after ${TIMEOUT_MINUTES} minutes"
+            echo "status=timeout" >> $GITHUB_OUTPUT
+            exit 1
+          fi
+
+          STATUS=$(aws codepipeline get-pipeline-execution \
+            --pipeline-execution-id "$EXECUTION_ID" \
+            --region "$AWS_REGION" \
+            --query 'pipelineExecution.status' \
+            --output text 2>/dev/null || echo "ERROR")
+
+          if [ "$STATUS" = "ERROR" ]; then
+            echo "Failed to get pipeline status"
+            echo "status=error" >> $GITHUB_OUTPUT
+            exit 1
+          fi
+
+          echo "Status: $STATUS (elapsed: ${ELAPSED}s)"
+
+          if [ "$STATUS" != "InProgress" ]; then
+            echo "Pipeline completed with status: $STATUS"
+            echo "status=$STATUS" >> $GITHUB_OUTPUT
+            break
+          fi
+
+          sleep "$POLL_INTERVAL"
+        done

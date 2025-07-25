@@ -1,0 +1,73 @@
+name: Check Keywords
+
+description: |
+  Checks if git diff additions contain specific keywords or patterns.
+  Returns simple boolean output.
+
+inputs:
+  patterns:
+    description: 'Comma-separated list of patterns to search for'
+    required: true
+    type: string
+  case-sensitive:
+    description: 'Whether search should be case sensitive'
+    required: false
+    default: 'false'
+    type: boolean
+  base-ref:
+    description: 'Base reference for diff calculation (default: origin/dev)'
+    required: false
+    default: 'origin/dev'
+    type: string
+
+outputs:
+  found:
+    description: 'Whether any patterns were found in additions'
+    value: ${{ steps.check.outputs.found }}
+
+runs:
+  using: "composite"
+  steps:
+    - name: Check Keywords
+      id: check
+      shell: bash
+      run: |
+        PATTERNS="${{ inputs.patterns }}"
+        CASE_SENSITIVE="${{ inputs.case-sensitive }}"
+        BASE_REF="${{ inputs.base-ref }}"
+
+        echo "Checking git diff additions for patterns: $PATTERNS"
+        echo "Comparing HEAD against $BASE_REF"
+
+        # Build grep options
+        GREP_OPTS=""
+        if [ "$CASE_SENSITIVE" = "false" ]; then
+          GREP_OPTS="-i"
+        fi
+
+        # Get git diff additions and check for patterns
+        FOUND=false
+
+        # Convert comma-separated patterns to array
+        IFS=',' read -ra PATTERN_ARRAY <<< "$PATTERNS"
+
+        for pattern in "${PATTERN_ARRAY[@]}"; do
+          if [ -n "$pattern" ]; then
+            echo "Checking for pattern: $pattern"
+
+            # Get git diff additions and search for pattern
+            if git diff "$BASE_REF" HEAD | grep "^+" | grep $GREP_OPTS "$pattern" > /dev/null; then
+              echo "Found pattern '$pattern' in additions"
+              FOUND=true
+              break
+            fi
+          fi
+        done
+
+        if [ "$FOUND" = "true" ]; then
+          echo "Patterns found in code additions"
+          echo "found=true" >> $GITHUB_OUTPUT
+        else
+          echo "No patterns found in code additions"
+          echo "found=false" >> $GITHUB_OUTPUT
+        fi

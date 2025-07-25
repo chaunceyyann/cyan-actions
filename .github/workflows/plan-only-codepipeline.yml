@@ -10,6 +10,10 @@ jobs:
     runs-on: ubuntu-latest
     env:
       AWS_REGION: us-west-2
+    outputs:
+      execution-id: ${{ steps.codepipeline.outputs.execution-id }}
+      platform: ${{ steps.platform.outputs.aft_account }}
+      target-account: ${{ steps.account.outputs.account_number }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -49,15 +53,40 @@ jobs:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
 
+  generate-summary:
+    runs-on: ubuntu-latest
+    needs: trigger-codepipeline
+    if: needs.trigger-codepipeline.outputs.execution-id != 'null'
+    env:
+      AWS_REGION: us-west-2
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Check for sensitive keywords
+        id: keyword-check
+        uses: ./.github/actions/check-keywords
+        with:
+          patterns: "noodle_king,secret_key,password,api_key,token"
+          base-ref: "origin/${{ github.base_ref }}"
+
+      - name: Check Pipeline Status
+        id: pipeline-status
+        uses: ./.github/actions/check-codepipeline
+        with:
+          execution-id: ${{ needs.trigger-codepipeline.outputs.execution-id }}
+          pipeline-name: "aft-customization-plan-only"
+          timeout-minutes: "30"
+          aws-region: ${{ env.AWS_REGION }}
+
       - name: Generate summary
         run: |
           cat << EOF >> $GITHUB_STEP_SUMMARY
-          ## 🚀 CodePipeline Execution Summary
+          ## CodePipeline Execution Summary
 
           ### Execution Details
-          - **Platform**: ${{ steps.platform.outputs.aft_account }}
-          - **Target Account**: ${{ steps.account.outputs.account_number }}
-          - **Pipeline Account**: ${{ steps.platform.outputs.aft_account }}
+          - **Platform**: ${{ needs.trigger-codepipeline.outputs.platform }}
+          - **Target Account**: ${{ needs.trigger-codepipeline.outputs.target-account }}
           - **AWS Region**: ${{ env.AWS_REGION }}
 
           ### Commit Information
@@ -66,17 +95,43 @@ jobs:
           - **Commit Author**: ${{ github.event.head_commit.author.name }}
           - **Commit Timestamp**: ${{ github.event.head_commit.timestamp }}
 
+          ### Code Quality Check
+          - **Sensitive Keywords Found**: ${{ steps.keyword-check.outputs.found }}
+
           ### Pipeline Status
+          - **Execution ID**: ${{ needs.trigger-codepipeline.outputs.execution-id }}
+          - **Status**: ${{ steps.pipeline-status.outputs.status }}
+          - **Start Time**: ${{ steps.pipeline-status.outputs.start-time }}
+          - **Pipeline Console**: [View in AWS Console](https://${{ env.AWS_REGION }}.console.aws.amazon.com/codesuite/codepipeline/pipelines/aft-customization-plan-only/executions/${{ needs.trigger-codepipeline.outputs.execution-id }}/view?region=${{ env.AWS_REGION }})
           EOF
 
-          if [ "${{ steps.codepipeline.outputs.execution-id }}" != "null" ]; then
-            cat << EOF >> $GITHUB_STEP_SUMMARY
-          - **Execution ID**: ${{ steps.codepipeline.outputs.execution-id }}
-          - **Status**: ${{ steps.codepipeline.outputs.status }}
-          - **Start Time**: ${{ steps.codepipeline.outputs.start-time }}
-          - **Pipeline Console**: [View in AWS Console](https://${{ env.AWS_REGION }}.console.aws.amazon.com/codesuite/codepipeline/pipelines/aft-customization-plan-only/executions/${{ steps.codepipeline.outputs.execution-id }}/view?region=${{ env.AWS_REGION }})
-          EOF
-          else
-            echo "- **Status**: Pipeline execution not found" >> $GITHUB_STEP_SUMMARY
+          if [ "${{ steps.pipeline-status.outputs.variables }}" != "" ]; then
+            echo "### Pipeline Variables" >> $GITHUB_STEP_SUMMARY
+            echo '```json' >> $GITHUB_STEP_SUMMARY
+            echo '${{ steps.pipeline-status.outputs.variables }}' >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
           fi
-        shell: bash
+
+      - name: Generate PDF report
+        id: pdf-report
+        uses: ./.github/actions/generate-pdf-report
+        with:
+          report-title: "CodePipeline Execution Report"
+          generated-time: ${{ format('{0}', github.event.head_commit.timestamp) }}
+          workflow-name: "${{ github.workflow }}"
+          run-id: "${{ github.run_id }}"
+          pr-number: "${{ github.event.number }}"
+          pr-title: "${{ github.event.pull_request.title }}"
+          execution-details: '{"Platform": "${{ needs.trigger-codepipeline.outputs.platform }}", "Target Account": "${{ needs.trigger-codepipeline.outputs.target-account }}", "AWS Region": "${{ env.AWS_REGION }}"}'
+          commit-information: '{"SHA": "${{ github.sha }}", "Message": "${{ github.event.head_commit.message }}", "Author": "${{ github.event.head_commit.author.name }}", "Timestamp": "${{ github.event.head_commit.timestamp }}", "Branch": "${{ github.ref_name }}", "Base Ref": "${{ github.base_ref }}"}'
+          quality-check: '{"Sensitive Keywords Found": "${{ steps.keyword-check.outputs.found }}", "Patterns Checked": "noodle_king, secret_key, password, api_key, token"}'
+          pipeline-status: '{"Execution ID": "${{ needs.trigger-codepipeline.outputs.execution-id }}", "Status": "${{ steps.pipeline-status.outputs.status }}", "Start Time": "${{ steps.pipeline-status.outputs.start-time }}", "Console URL": "https://${{ env.AWS_REGION }}.console.aws.amazon.com/codesuite/codepipeline/pipelines/aft-customization-plan-only/executions/${{ needs.trigger-codepipeline.outputs.execution-id }}/view?region=${{ env.AWS_REGION }}"}'
+          variables: "${{ steps.pipeline-status.outputs.variables }}"
+          output-filename: "pipeline-execution-report-${{ github.run_id }}"
+
+      - name: Upload PDF report
+        uses: actions/upload-artifact@v4
+        with:
+          name: pipeline-execution-report-${{ github.run_id }}
+          path: ${{ steps.pdf-report.outputs.pdf-path }}
+          retention-days: 30

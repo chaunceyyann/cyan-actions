@@ -65,10 +65,10 @@ runs:
             --pipeline-execution-id "$EXECUTION_ID" \
             --region "$AWS_REGION" \
             --query 'pipelineExecution.status' \
-            --output text 2>/dev/null || echo "ERROR")
+            --output text 2>&1)
 
-          if [ "$STATUS" = "ERROR" ]; then
-            echo "Failed to get pipeline status"
+          if [ $? -ne 0 ]; then
+            echo "Failed to get pipeline status: $STATUS"
             echo "status=error" >> $GITHUB_OUTPUT
             exit 1
           fi

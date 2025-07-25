@@ -61,14 +61,35 @@ runs:
             exit 1
           fi
 
+          # Get pipeline execution status with proper error handling
+          set +e  # Don't exit on error
           STATUS=$(aws codepipeline get-pipeline-execution \
             --pipeline-execution-id "$EXECUTION_ID" \
             --region "$AWS_REGION" \
             --query 'pipelineExecution.status' \
             --output text 2>&1)
+          EXIT_CODE=$?
+          set -e  # Re-enable exit on error
 
-          if [ $? -ne 0 ]; then
-            echo "Failed to get pipeline status: $STATUS"
+          if [ $EXIT_CODE -ne 0 ]; then
+            echo "AWS CLI failed with exit code: $EXIT_CODE"
+            echo "Error message: $STATUS"
+
+            # Provide specific error guidance based on common patterns
+            if echo "$STATUS" | grep -q "PipelineExecutionNotFoundException"; then
+              echo "Error: Execution ID '$EXECUTION_ID' not found. Check if the ID is correct and exists."
+            elif echo "$STATUS" | grep -q "AccessDenied"; then
+              echo "Error: Access denied. Check AWS credentials and permissions for CodePipeline."
+            elif echo "$STATUS" | grep -q "InvalidParameterValue"; then
+              echo "Error: Invalid parameter. Check execution ID format and region."
+            elif echo "$STATUS" | grep -q "ThrottlingException"; then
+              echo "Error: AWS API throttling. Consider increasing poll interval."
+            elif echo "$STATUS" | grep -q "NoSuchEntityException"; then
+              echo "Error: Pipeline execution does not exist or has been deleted."
+            else
+              echo "Unknown AWS error. Check AWS CLI configuration and network connectivity."
+            fi
+
             echo "status=error" >> $GITHUB_OUTPUT
             exit 1
           fi

@@ -1,0 +1,59 @@
+name: Install and Run Pre-Commit
+
+description: |
+  Installs pre-commit if missing, makes hooks/commit-msg executable, installs hooks, and runs pre-commit on changed or all files.
+
+inputs:
+  files:
+    description: 'Space-separated list of changed files to run pre-commit on (optional)'
+    required: false
+    default: ''
+
+runs:
+  using: "composite"
+  steps:
+    - name: Ensure pre-commit is installed
+      shell: bash
+      run: |
+        if ! command -v pre-commit &> /dev/null; then
+          echo "❌ pre-commit is not installed. Attempting to install with pip..."
+          if command -v pip &> /dev/null; then
+            pip install pre-commit
+            echo "✅ pre-commit installed with pip"
+          elif command -v pip3 &> /dev/null; then
+            pip3 install pre-commit
+            echo "✅ pre-commit installed with pip3"
+          else
+            echo "❌ pip not found. Please install pre-commit manually."
+            exit 1
+          fi
+        else
+          echo "✅ pre-commit is already installed"
+        fi
+
+    - name: Make commit-msg hook executable
+      shell: bash
+      run: |
+        if [ -f hooks/commit-msg ]; then
+          chmod +x hooks/commit-msg
+          echo "✅ Made commit-msg hook executable"
+        else
+          echo "⚠️ hooks/commit-msg not found. Skipping chmod."
+        fi
+
+    - name: Install pre-commit hooks
+      shell: bash
+      run: |
+        pre-commit install
+        echo "✅ Pre-commit hooks installed"
+
+    - name: Run pre-commit
+      shell: bash
+      run: |
+        if [ -n "${{ inputs.files }}" ]; then
+          echo "🔍 Running pre-commit checks on changed files: ${{ inputs.files }}"
+          pre-commit run --files ${{ inputs.files }}
+        else
+          echo "🔍 Running pre-commit checks on all files..."
+          pre-commit run --all-files
+        fi

@@ -33,10 +33,6 @@ jobs:
         with:
           python-version: ${{ inputs.python-version }}
       - name: Install and run pre-commit
-        run: |
-          chmod +x install-pre-commit.sh
-          if [ -n "${{ steps.changed-files.outputs.files }}" ]; then
-            ./install-pre-commit.sh "${{ steps.changed-files.outputs.files }}"
-          else
-            echo "No files changed, skipping pre-commit checks"
-          fi
+        uses: chaunceyyann/cyan-actions/.github/actions/install-pre-commit@dev
+        with:
+          files: ${{ steps.changed-files.outputs.files }}

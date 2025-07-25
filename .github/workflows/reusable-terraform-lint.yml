@@ -16,7 +16,7 @@ on:
       aws-ruleset-version:
         description: 'AWS ruleset version to use'
         required: false
-        default: 'v0.40.0'
+        default: '0.40.0'
         type: string
       fetch-depth:
         description: 'Git fetch depth for diff calculation'

@@ -55,7 +55,7 @@ jobs:
         id: platform
         run: |
           PLATFORM=$([ "${{ github.ref_name }}" = "master" ] && echo "prod_account_number" || echo "dev_account_number")
-          echo "aft_account=$PLATFORM" >> $GITHUB_OUTPUT
+          echo "aft_account=$PLATFORM" >> "$GITHUB_OUTPUT"
           echo "Platform: $PLATFORM"
 
       - name: Find changed files
@@ -110,7 +110,8 @@ jobs:
 
       - name: Generate summary
         run: |
-          cat << EOF >> $GITHUB_STEP_SUMMARY
+          {
+            cat << EOF
           ## CodePipeline Execution Summary
 
           ### Execution Details
@@ -134,12 +135,13 @@ jobs:
           - **Pipeline Console**: [View in AWS Console](https://${{ env.AWS_REGION }}.console.aws.amazon.com/codesuite/codepipeline/pipelines/${{ inputs.pipeline-name }}/executions/${{ needs.trigger-codepipeline.outputs.execution-id }}/view?region=${{ env.AWS_REGION }})
           EOF
 
-          if [ "${{ steps.pipeline-status.outputs.variables }}" != "" ]; then
-            echo "### Pipeline Variables" >> $GITHUB_STEP_SUMMARY
-            echo '```json' >> $GITHUB_STEP_SUMMARY
-            echo '${{ steps.pipeline-status.outputs.variables }}' >> $GITHUB_STEP_SUMMARY
-            echo '```' >> $GITHUB_STEP_SUMMARY
-          fi
+            if [ "${{ steps.pipeline-status.outputs.variables }}" != "" ]; then
+              echo "### Pipeline Variables"
+              echo '```json'
+              echo "${{ steps.pipeline-status.outputs.variables }}"
+              echo '```'
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Generate PDF report
         id: pdf-report

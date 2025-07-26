@@ -73,7 +73,7 @@ jobs:
 
       - name: Call AWS AFT CodePipeline Action
         id: codepipeline
-        uses: chaunceyyann/cyan-actions/.github/actions/aws-aft-codepipeline@v0.1
+        uses: chaunceyyann/cyan-actions/.github/actions/run-codepipeline@v0.1
         with:
           aws-region: ${{ env.AWS_REGION }}
           aws-target-account: ${{ steps.account.outputs.account_number }}

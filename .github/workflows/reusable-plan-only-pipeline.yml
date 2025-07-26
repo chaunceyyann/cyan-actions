@@ -115,9 +115,24 @@ jobs:
           COMMIT_AUTHOR=$(git log -1 --pretty=format:"%an")
           COMMIT_TIMESTAMP=$(git log -1 --pretty=format:"%aI")
 
-          echo "commit-message=$COMMIT_MSG" >> "$GITHUB_OUTPUT"
-          echo "commit-author=$COMMIT_AUTHOR" >> "$GITHUB_OUTPUT"
-          echo "commit-timestamp=$COMMIT_TIMESTAMP" >> "$GITHUB_OUTPUT"
+          {
+            echo "commit-message=$COMMIT_MSG"
+            echo "commit-author=$COMMIT_AUTHOR"
+            echo "commit-timestamp=$COMMIT_TIMESTAMP"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Get PR information
+        id: pr-info
+        run: |
+          PR_NUMBER="${{ github.event.number }}"
+          PR_TITLE="${{ github.event.pull_request.title }}"
+          PR_AUTHOR="${{ github.event.pull_request.user.login }}"
+
+          {
+            echo "pr-number=$PR_NUMBER"
+            echo "pr-title=$PR_TITLE"
+            echo "pr-author=$PR_AUTHOR"
+          } >> "$GITHUB_OUTPUT"
 
       - name: Generate summary
         run: |
@@ -131,8 +146,8 @@ jobs:
           - **AWS Region**: ${{ env.AWS_REGION }}
 
           ### Pull Request
-          - **PR**: #${{ github.event.number }} - ${{ github.event.pull_request.title }} by ${{ github.event.pull_request.user.login }}
-          - **PR Link**: [View Pull Request](https://github.com/${{ github.repository }}/pull/${{ github.event.number }})
+          - **PR**: #${{ steps.pr-info.outputs.pr-number }} - ${{ steps.pr-info.outputs.pr-title }} by ${{ steps.pr-info.outputs.pr-author }}
+          - **PR Link**: [View Pull Request](https://github.com/${{ github.repository }}/pull/${{ steps.pr-info.outputs.pr-number }})
 
           ### Latest Commit
           - **SHA**: ${{ github.sha }}

@@ -17,8 +17,9 @@ runs:
     - name: Determine account number using Python
       id: account
       run: |
-        # Ensure we're in the action directory
-        cd "$(dirname "$0")"
+        # Get the action directory path
+        ACTION_DIR="$GITHUB_ACTION_PATH"
+        cd "$ACTION_DIR"
         python3 map_accounts.py
       env:
         CHANGED_FILES: ${{ inputs.changed-files }}

@@ -1,7 +1,7 @@
 name: Install and Run Pre-Commit
 
 description: |
-  Installs pre-commit if missing, makes hooks/commit-msg executable, installs hooks, and runs pre-commit on changed or all files.
+  Installs pre-commit if missing, makes hooks/commit-msg.sh executable, installs hooks, and runs pre-commit on changed or all files.
 
 inputs:
   files:
@@ -31,14 +31,28 @@ runs:
           echo "✅ pre-commit is already installed"
         fi
 
-    - name: Make commit-msg hook executable
+    - name: Install pre-commit-hooks package
       shell: bash
       run: |
-        if [ -f hooks/commit-msg ]; then
-          chmod +x hooks/commit-msg
-          echo "✅ Made commit-msg hook executable"
+        echo "📦 Installing pre-commit-hooks package..."
+        if command -v pip &> /dev/null; then
+          pip install pre-commit-hooks
+          echo "✅ pre-commit-hooks installed with pip"
+        elif command -v pip3 &> /dev/null; then
+          pip3 install pre-commit-hooks
+          echo "✅ pre-commit-hooks installed with pip3"
         else
-          echo "⚠️ hooks/commit-msg not found. Skipping chmod."
+          echo "⚠️ pip not found, skipping pre-commit-hooks installation"
+        fi
+
+    - name: Make commit-msg.sh hook executable
+      shell: bash
+      run: |
+        if [ -f hooks/commit-msg.sh ]; then
+          chmod +x hooks/commit-msg.sh
+          echo "✅ Made commit-msg.sh hook executable"
+        else
+          echo "⚠️ hooks/commit-msg.sh not found. Skipping chmod."
         fi
 
     - name: Install pre-commit hooks
@@ -46,6 +60,12 @@ runs:
       run: |
         pre-commit install
         echo "✅ Pre-commit hooks installed"
+
+    - name: Install commit-msg hook
+      shell: bash
+      run: |
+        pre-commit install --hook-type commit-msg
+        echo "✅ Commit-msg hook installed"
 
     - name: Run pre-commit
       shell: bash

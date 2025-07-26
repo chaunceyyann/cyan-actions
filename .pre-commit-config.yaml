@@ -61,7 +61,10 @@ repos:
         args:
           - --args=--format=compact
 
-  - repo: https://github.com/chaunceyyann/cyan-actions
-    rev: v0.1  # or main, or a tag/commit hash
+  - repo: local
     hooks:
       - id: jira-commit-msg
+        name: JIRA Commit Message Hook
+        entry: hooks/commit-msg.sh
+        language: script
+        stages: [commit-msg]

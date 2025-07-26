@@ -1,15 +1,46 @@
-name: Plan-Only CodePipeline Trigger
+name: Reusable Plan-Only CodePipeline Trigger
 
 on:
-  pull_request:
-    types: [labeled]
-    branches: [dev, master]
+  workflow_call:
+    inputs:
+      aws-region:
+        description: 'AWS region for the pipeline'
+        required: false
+        default: 'us-west-2'
+        type: string
+      pipeline-name:
+        description: 'Name of the CodePipeline to trigger'
+        required: false
+        default: 'aft-customization-plan-only'
+        type: string
+      timeout-minutes:
+        description: 'Timeout in minutes for pipeline execution'
+        required: false
+        default: '30'
+        type: string
+      patterns:
+        description: 'Comma-separated patterns to check for sensitive keywords'
+        required: false
+        default: 'noodle_king,secret_key,password,api_key,token'
+        type: string
+      file-patterns:
+        description: 'Patterns to match changed files for account mapping'
+        required: false
+        default: |
+          ^src/.*
+          ^tests/.*
+        type: string
+    secrets:
+      aws-access-key-id:
+        required: true
+      aws-secret-access-key:
+        required: true
 
 jobs:
   trigger-codepipeline:
     runs-on: ubuntu-latest
     env:
-      AWS_REGION: us-west-2
+      AWS_REGION: ${{ inputs.aws-region }}
     outputs:
       execution-id: ${{ steps.codepipeline.outputs.execution-id }}
       platform: ${{ steps.platform.outputs.aft_account }}
@@ -29,54 +60,52 @@ jobs:
 
       - name: Find changed files
         id: changes
-        uses: ./.github/actions/changed-files
+        uses: chaunceyyann/cyan-actions/.github/actions/changed-files@v0.1
         with:
-          pattern: |
-            ^src/.*
-            ^tests/.*
+          pattern: ${{ inputs.file-patterns }}
 
       - name: Determine account number
         id: account
-        uses: ./.github/actions/account-mapping
+        uses: chaunceyyann/cyan-actions/.github/actions/account-mapping@v0.1
         with:
           changed-files: ${{ steps.changes.outputs.files }}
           environment: ${{ steps.platform.outputs.aft_account }}
 
       - name: Call AWS AFT CodePipeline Action
         id: codepipeline
-        uses: ./.github/actions/aws-aft-codepipeline
+        uses: chaunceyyann/cyan-actions/.github/actions/aws-aft-codepipeline@v0.1
         with:
           aws-region: ${{ env.AWS_REGION }}
           aws-target-account: ${{ steps.account.outputs.account_number }}
           aws-pipeline-account: ${{ steps.platform.outputs.aft_account }}
           commit-sha: ${{ github.sha }}
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-access-key-id: ${{ secrets.aws-access-key-id }}
+          aws-secret-access-key: ${{ secrets.aws-secret-access-key }}
 
   generate-summary:
     runs-on: ubuntu-latest
     needs: trigger-codepipeline
     if: needs.trigger-codepipeline.outputs.execution-id != 'null'
     env:
-      AWS_REGION: us-west-2
+      AWS_REGION: ${{ inputs.aws-region }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
       - name: Check for sensitive keywords
         id: keyword-check
-        uses: ./.github/actions/check-keywords
+        uses: chaunceyyann/cyan-actions/.github/actions/check-keywords@v0.1
         with:
-          patterns: "noodle_king,secret_key,password,api_key,token"
+          patterns: ${{ inputs.patterns }}
           base-ref: "origin/${{ github.base_ref }}"
 
       - name: Check Pipeline Status
         id: pipeline-status
-        uses: ./.github/actions/check-codepipeline
+        uses: chaunceyyann/cyan-actions/.github/actions/check-codepipeline@v0.1
         with:
           execution-id: ${{ needs.trigger-codepipeline.outputs.execution-id }}
-          pipeline-name: "aft-customization-plan-only"
-          timeout-minutes: "30"
+          pipeline-name: ${{ inputs.pipeline-name }}
+          timeout-minutes: ${{ inputs.timeout-minutes }}
           aws-region: ${{ env.AWS_REGION }}
 
       - name: Generate summary
@@ -102,7 +131,7 @@ jobs:
           - **Execution ID**: ${{ needs.trigger-codepipeline.outputs.execution-id }}
           - **Status**: ${{ steps.pipeline-status.outputs.status }}
           - **Start Time**: ${{ steps.pipeline-status.outputs.start-time }}
-          - **Pipeline Console**: [View in AWS Console](https://${{ env.AWS_REGION }}.console.aws.amazon.com/codesuite/codepipeline/pipelines/aft-customization-plan-only/executions/${{ needs.trigger-codepipeline.outputs.execution-id }}/view?region=${{ env.AWS_REGION }})
+          - **Pipeline Console**: [View in AWS Console](https://${{ env.AWS_REGION }}.console.aws.amazon.com/codesuite/codepipeline/pipelines/${{ inputs.pipeline-name }}/executions/${{ needs.trigger-codepipeline.outputs.execution-id }}/view?region=${{ env.AWS_REGION }})
           EOF
 
           if [ "${{ steps.pipeline-status.outputs.variables }}" != "" ]; then
@@ -114,7 +143,7 @@ jobs:
 
       - name: Generate PDF report
         id: pdf-report
-        uses: ./.github/actions/generate-pdf-report
+        uses: chaunceyyann/cyan-actions/.github/actions/generate-pdf-report@v0.1
         with:
           report-title: "CodePipeline Execution Report"
           generated-time: ${{ format('{0}', github.event.head_commit.timestamp) }}
@@ -124,8 +153,8 @@ jobs:
           pr-title: "${{ github.event.pull_request.title }}"
           execution-details: '{"Platform": "${{ needs.trigger-codepipeline.outputs.platform }}", "Target Account": "${{ needs.trigger-codepipeline.outputs.target-account }}", "AWS Region": "${{ env.AWS_REGION }}"}'
           commit-information: '{"SHA": "${{ github.sha }}", "Message": "${{ github.event.head_commit.message }}", "Author": "${{ github.event.head_commit.author.name }}", "Timestamp": "${{ github.event.head_commit.timestamp }}", "Branch": "${{ github.ref_name }}", "Base Ref": "${{ github.base_ref }}"}'
-          quality-check: '{"Sensitive Keywords Found": "${{ steps.keyword-check.outputs.found }}", "Patterns Checked": "noodle_king, secret_key, password, api_key, token"}'
-          pipeline-status: '{"Execution ID": "${{ needs.trigger-codepipeline.outputs.execution-id }}", "Status": "${{ steps.pipeline-status.outputs.status }}", "Start Time": "${{ steps.pipeline-status.outputs.start-time }}", "Console URL": "https://${{ env.AWS_REGION }}.console.aws.amazon.com/codesuite/codepipeline/pipelines/aft-customization-plan-only/executions/${{ needs.trigger-codepipeline.outputs.execution-id }}/view?region=${{ env.AWS_REGION }}"}'
+          quality-check: '{"Sensitive Keywords Found": "${{ steps.keyword-check.outputs.found }}", "Patterns Checked": "${{ inputs.patterns }}"}'
+          pipeline-status: '{"Execution ID": "${{ needs.trigger-codepipeline.outputs.execution-id }}", "Status": "${{ steps.pipeline-status.outputs.status }}", "Start Time": "${{ steps.pipeline-status.outputs.start-time }}", "Console URL": "https://${{ env.AWS_REGION }}.console.aws.amazon.com/codesuite/codepipeline/pipelines/${{ inputs.pipeline-name }}/executions/${{ needs.trigger-codepipeline.outputs.execution-id }}/view?region=${{ env.AWS_REGION }}"}'
           variables: "${{ steps.pipeline-status.outputs.variables }}"
           output-filename: "pipeline-execution-report-${{ github.run_id }}"
 

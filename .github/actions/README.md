@@ -14,7 +14,7 @@ Detects files that have changed in a pull request or push event, with optional p
 **Usage:**
 ```yaml
 - name: Find changed Python files
-  uses: ./.github/actions/changed-files
+  uses: chaunceyyann/cyan-actions/.github/actions/changed-files@v0.1
   with:
     pattern: ".*\\.py$"
 ```
@@ -38,7 +38,7 @@ Maps changed files to AWS account numbers based on environment and file patterns
 **Usage:**
 ```yaml
 - name: Determine account number
-  uses: ./.github/actions/account-mapping
+  uses: chaunceyyann/cyan-actions/.github/actions/account-mapping@v0.1
   with:
     changed-files: ${{ steps.changes.outputs.files }}
     environment: "dev"
@@ -57,6 +57,137 @@ Maps changed files to AWS account numbers based on environment and file patterns
 - Configurable via `mappings.yml`
 - Comprehensive error handling
 
+### [check-keywords](check-keywords/)
+
+Checks if git diff additions contain specific keywords or patterns.
+
+**Usage:**
+```yaml
+- name: Check for sensitive keywords
+  uses: chaunceyyann/cyan-actions/.github/actions/check-keywords@v0.1
+  with:
+    patterns: "secret_key,password,api_key,token"
+    base-ref: "origin/dev"
+```
+
+**Inputs:**
+- `patterns`: Comma-separated list of keywords/patterns to check
+- `base-ref`: Base reference for git diff (default: "origin/dev")
+
+**Outputs:**
+- `found`: Boolean indicating if any patterns were found
+
+**Features:**
+- Checks only additions in git diff
+- Configurable pattern matching
+- Simple boolean output
+- Efficient keyword scanning
+
+### [check-codepipeline](check-codepipeline/)
+
+Monitors AWS CodePipeline execution status with polling and detailed information retrieval.
+
+**Usage:**
+```yaml
+- name: Check Pipeline Status
+  uses: chaunceyyann/cyan-actions/.github/actions/check-codepipeline@v0.1
+  with:
+    execution-id: "abc123"
+    pipeline-name: "my-pipeline"
+    timeout-minutes: "30"
+    aws-region: "us-west-2"
+```
+
+**Inputs:**
+- `execution-id`: CodePipeline execution ID
+- `pipeline-name`: Name of the CodePipeline
+- `timeout-minutes`: Timeout in minutes (default: "30")
+- `aws-region`: AWS region (default: "us-west-2")
+
+**Outputs:**
+- `status`: Pipeline execution status
+- `start-time`: Pipeline start time
+- `variables`: Pipeline variables (JSON)
+
+**Features:**
+- Polling with configurable timeout
+- Detailed error handling and logging
+- Retrieves pipeline metadata
+- Comprehensive status reporting
+
+### [generate-pdf-report](generate-pdf-report/)
+
+Generates professional PDF reports using Python's reportlab library.
+
+**Usage:**
+```yaml
+- name: Generate PDF Report
+  uses: chaunceyyann/cyan-actions/.github/actions/generate-pdf-report@v0.1
+  with:
+    report-title: "Execution Report"
+    generated-time: "2024-01-01T00:00:00Z"
+    workflow-name: "My Workflow"
+    run-id: "123456789"
+    output-filename: "my-report"
+```
+
+**Inputs:**
+- `report-title`: Title of the report
+- `generated-time`: Timestamp when report was generated
+- `workflow-name`: Name of the workflow
+- `run-id`: GitHub run ID
+- `pr-number`: Pull request number (optional)
+- `pr-title`: Pull request title (optional)
+- `execution-details`: JSON string with execution details
+- `commit-information`: JSON string with commit information
+- `quality-check`: JSON string with quality check results
+- `pipeline-status`: JSON string with pipeline status
+- `variables`: JSON string with variables (optional)
+- `output-filename`: Base filename for the PDF
+
+**Outputs:**
+- `pdf-path`: Path to the generated PDF file
+
+**Features:**
+- Professional PDF formatting
+- Configurable report sections
+- JSON data integration
+- Automatic artifact generation
+
+### [run-codepipeline](run-codepipeline/)
+
+Triggers AWS CodePipeline execution with environment-aware account routing.
+
+**Usage:**
+```yaml
+- name: Trigger CodePipeline
+  uses: chaunceyyann/cyan-actions/.github/actions/run-codepipeline@v0.1
+  with:
+    aws-region: "us-west-2"
+    aws-target-account: "123456789012"
+    aws-pipeline-account: "dev_account_number"
+    commit-sha: ${{ github.sha }}
+    aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+    aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+```
+
+**Inputs:**
+- `aws-region`: AWS region
+- `aws-target-account`: Target AWS account number
+- `aws-pipeline-account`: Pipeline account identifier
+- `commit-sha`: Git commit SHA
+- `aws-access-key-id`: AWS access key ID
+- `aws-secret-access-key`: AWS secret access key
+
+**Outputs:**
+- `execution-id`: CodePipeline execution ID
+
+**Features:**
+- Environment-aware account routing
+- Secure credential handling
+- Execution tracking
+- Error handling and logging
+
 ### [test-actions](test-actions/)
 
 Tests custom actions for syntax errors and basic functionality.
@@ -64,7 +195,7 @@ Tests custom actions for syntax errors and basic functionality.
 **Usage:**
 ```yaml
 - name: Test Custom Actions
-  uses: ./.github/actions/test-actions
+  uses: chaunceyyann/cyan-actions/.github/actions/test-actions@v0.1
 ```
 
 **Features:**
@@ -81,7 +212,7 @@ Tests reusable workflows for syntax errors and configuration.
 **Usage:**
 ```yaml
 - name: Test Reusable Workflows
-  uses: ./.github/actions/test-workflows
+  uses: chaunceyyann/cyan-actions/.github/actions/test-workflows@v0.1
 ```
 
 **Features:**

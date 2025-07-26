@@ -19,7 +19,7 @@ on:
     branches: [main]
 jobs:
   python-ci:
-    uses: chaunceyyann/cyan-actions/.github/workflows/reusable-python-ci.yml@main
+    uses: chaunceyyann/cyan-actions/.github/workflows/reusable-python-ci.yml@v0.1
     with:
       python-version: '3.11'
       run-integration-tests: true
@@ -59,7 +59,7 @@ on:
     branches: [main]
 jobs:
   pre-commit:
-    uses: chaunceyyann/cyan-actions/.github/workflows/reusable-pre-commit.yml@main
+    uses: chaunceyyann/cyan-actions/.github/workflows/reusable-pre-commit.yml@v0.1
     with:
       python-version: '3.11'
       fetch-depth: '0'
@@ -87,7 +87,7 @@ on:
     branches: [main]
 jobs:
   terraform-lint:
-    uses: chaunceyyann/cyan-actions/.github/workflows/reusable-terraform-lint.yml@main
+    uses: chaunceyyann/cyan-actions/.github/workflows/reusable-terraform-lint.yml@v0.1
     with:
       terraform-version: '1.5.0'
       terraform-files-pattern: ".*\\.tf$"
@@ -103,33 +103,48 @@ jobs:
 - Configurable Terraform version
 - Detailed output and error reporting
 
-### [plan-only-codepipeline.yml](plan-only-codepipeline.yml)
+### [reusable-plan-only-pipeline.yml](reusable-plan-only-pipeline.yml)
 
-Triggers AWS CodePipeline for plan-only operations with environment-aware account routing.
+A comprehensive reusable workflow for triggering AWS CodePipeline plan-only operations with environment-aware account routing, keyword checking, and PDF report generation.
 
 **Usage:**
 ```yaml
 name: Plan-Only CodePipeline
 on:
   pull_request:
-    branches: [main]
+    types: [labeled]
+    branches: [dev, master]
 jobs:
-  plan-pipeline:
-    uses: chaunceyyann/cyan-actions/.github/workflows/plan-only-codepipeline.yml@main
-    with:
-      environment: "dev"
-      pipeline-name: "my-terraform-pipeline"
+  plan-only-codepipeline:
+    uses: chaunceyyann/cyan-actions/.github/workflows/reusable-plan-only-pipeline.yml@v0.1
+    secrets:
+      aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+      aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
 ```
 
 **Inputs:**
-- `environment` (string): Target environment (dev, prod, etc.)
-- `pipeline-name` (string): Name of the CodePipeline to trigger
+- `aws-region` (string): AWS region for the pipeline (default: "us-west-2")
+- `pipeline-name` (string): Name of the CodePipeline to trigger (default: "aft-customization-plan-only")
+- `timeout-minutes` (string): Timeout in minutes for pipeline execution (default: "30")
+- `patterns` (string): Comma-separated patterns to check for sensitive keywords (default: "noodle_king,secret_key,password,api_key,token")
+- `file-patterns` (string): Patterns to match changed files for account mapping (default: "^src/.*" and "^tests/.*")
+
+**Secrets:**
+- `aws-access-key-id` (required): AWS access key ID
+- `aws-secret-access-key` (required): AWS secret access key
+
+**Jobs:**
+- **trigger-codepipeline**: Determines platform, finds changed files, maps accounts, and triggers CodePipeline
+- **generate-summary**: Checks for sensitive keywords, monitors pipeline status, generates summary, and creates PDF report
 
 **Features:**
-- Environment-aware account routing
-- Integrates with account-mapping action
-- Triggers CodePipeline with plan-only mode
-- Comprehensive error handling
+- Environment-aware account routing (dev/prod based on target branch)
+- Automatic changed file detection and account mapping
+- Sensitive keyword checking in code changes
+- Pipeline status monitoring with timeout
+- Comprehensive summary generation with GitHub step summary
+- Professional PDF report generation and artifact upload
+- Full integration with custom actions for modularity
 
 ### [test-custom-actions.yml](test-custom-actions.yml)
 
@@ -194,7 +209,7 @@ flowchart TD
     C --> I[reusable-python-ci.yml]
     C --> J[reusable-pre-commit.yml]
     C --> K[reusable-terraform-lint.yml]
-    C --> L[plan-only-codepipeline.yml]
+    C --> L[reusable-plan-only-pipeline.yml]
 
     D --> M[Python CI on actions repo]
 ```
@@ -211,7 +226,7 @@ on:
     branches: [main]
 jobs:
   python-ci:
-    uses: chaunceyyann/cyan-actions/.github/workflows/reusable-python-ci.yml@main
+    uses: chaunceyyann/cyan-actions/.github/workflows/reusable-python-ci.yml@v0.1
     with:
       python-version: '3.11'
       run-integration-tests: true
@@ -227,13 +242,13 @@ on:
     branches: [main]
 jobs:
   pre-commit:
-    uses: chaunceyyann/cyan-actions/.github/workflows/reusable-pre-commit.yml@main
+    uses: chaunceyyann/cyan-actions/.github/workflows/reusable-pre-commit.yml@v0.1
     with:
       python-version: '3.11'
       fetch-depth: '0'
 
   python-ci:
-    uses: chaunceyyann/cyan-actions/.github/workflows/reusable-python-ci.yml@main
+    uses: chaunceyyann/cyan-actions/.github/workflows/reusable-python-ci.yml@v0.1
     with:
       python-version: '3.11'
       test-directory: 'src/tests'
@@ -241,9 +256,19 @@ jobs:
       install-command: 'pip install -e .'
 
   terraform-lint:
-    uses: chaunceyyann/cyan-actions/.github/workflows/reusable-terraform-lint.yml@main
+    uses: chaunceyyann/cyan-actions/.github/workflows/reusable-terraform-lint.yml@v0.1
     with:
       terraform-version: '1.5.0'
+
+  plan-only-pipeline:
+    uses: chaunceyyann/cyan-actions/.github/workflows/reusable-plan-only-pipeline.yml@v0.1
+    with:
+      aws-region: 'us-east-1'
+      pipeline-name: 'my-custom-pipeline'
+      patterns: 'custom_pattern,another_pattern'
+    secrets:
+      aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+      aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
 ```
 
 ## 🔧 Development

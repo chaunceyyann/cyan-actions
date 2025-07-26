@@ -44,7 +44,8 @@ jobs:
     outputs:
       execution-id: ${{ steps.codepipeline.outputs.execution-id }}
       platform: ${{ steps.platform.outputs.aft_account }}
-      target-account: ${{ steps.account.outputs.account_number }}
+      target-account: ${{ steps.account.outputs.account-number }}
+      skip-workflow: ${{ steps.check-mapping.outputs.skip-pipeline }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -75,7 +76,7 @@ jobs:
         id: check-mapping
         run: |
           if [ "${{ steps.account.outputs.mapping-found }}" = "false" ]; then
-            echo "No account mapping found for changed files. Skipping pipeline trigger."
+            echo "No account mapping found for changed files. Skipping entire workflow."
             echo "skip_pipeline=true" >> $GITHUB_OUTPUT
           else
             echo "Account mapping found. Proceeding with pipeline trigger."
@@ -97,7 +98,7 @@ jobs:
   generate-summary:
     runs-on: ubuntu-latest
     needs: trigger-codepipeline
-    if: needs.trigger-codepipeline.outputs.execution-id != 'null' && needs.trigger-codepipeline.outputs.execution-id != ''
+    if: needs.trigger-codepipeline.outputs.skip-workflow != 'true' && needs.trigger-codepipeline.outputs.execution-id != 'null' && needs.trigger-codepipeline.outputs.execution-id != ''
     env:
       AWS_REGION: ${{ inputs.aws-region }}
     steps:

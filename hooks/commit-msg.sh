@@ -46,7 +46,7 @@ done
 if [ -n "$JIRA_TICKET" ]; then
     if [[ "$JIRA_TICKET" =~ ^[A-Z]+[0-9]+$ ]]; then
         # Uppercase no dash: ABC123 -> ABC-123
-    JIRA_TICKET=$(echo "$JIRA_TICKET" | sed 's/\([A-Z]*\)\([0-9]*\)/\1-\2/')
+        JIRA_TICKET=$(echo "$JIRA_TICKET" | sed 's/\([A-Z]*\)\([0-9]*\)/\1-\2/')
     elif [[ "$JIRA_TICKET" =~ ^[a-z]+[0-9]+$ ]]; then
         # Lowercase no dash: abc123 -> ABC-123
         JIRA_TICKET=$(echo "$JIRA_TICKET" | sed 's/\([a-z]*\)\([0-9]*\)/\1-\2/' | tr '[:lower:]' '[:upper:]')

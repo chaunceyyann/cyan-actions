@@ -10,6 +10,9 @@ JIRA_PATTERNS=(
     '[A-Z]+-[0-9]+'           # Standard: JIRA-123, ABC-456
     '[A-Z]+[0-9]+'            # No dash: ABC123, PROJECT456
     '[A-Z]{2,}-[0-9]+'        # At least 2 letters: AB-123
+    '[a-z]+-[0-9]+'           # Lowercase: jira-123, abc-456
+    '[a-z]+[0-9]+'            # Lowercase no dash: abc123, project456
+    '[a-z]{2,}-[0-9]+'        # Lowercase at least 2 letters: ab-123
 )
 SKIP_PREFIXES=("Merge" "Revert" "WIP" "Draft")
 JIRA_PREFIX_FORMAT="[{TICKET}] {MESSAGE}"
@@ -39,9 +42,18 @@ for pattern in "${JIRA_PATTERNS[@]}"; do
     fi
 done
 
-# Convert patterns without dash to include dash (ABC123 -> ABC-123)
-if [ -n "$JIRA_TICKET" ] && [[ "$JIRA_TICKET" =~ ^[A-Z]+[0-9]+$ ]]; then
+# Convert patterns without dash to include dash (ABC123 -> ABC-123, abc123 -> ABC-123)
+if [ -n "$JIRA_TICKET" ]; then
+    if [[ "$JIRA_TICKET" =~ ^[A-Z]+[0-9]+$ ]]; then
+        # Uppercase no dash: ABC123 -> ABC-123
     JIRA_TICKET=$(echo "$JIRA_TICKET" | sed 's/\([A-Z]*\)\([0-9]*\)/\1-\2/')
+    elif [[ "$JIRA_TICKET" =~ ^[a-z]+[0-9]+$ ]]; then
+        # Lowercase no dash: abc123 -> ABC-123
+        JIRA_TICKET=$(echo "$JIRA_TICKET" | sed 's/\([a-z]*\)\([0-9]*\)/\1-\2/' | tr '[:lower:]' '[:upper:]')
+    elif [[ "$JIRA_TICKET" =~ ^[a-z]+-[0-9]+$ ]]; then
+        # Lowercase with dash: abc-123 -> ABC-123
+        JIRA_TICKET=$(echo "$JIRA_TICKET" | tr '[:lower:]' '[:upper:]')
+    fi
 fi
 
 # If we found a JIRA_TICKET, check if it's already in the commit message

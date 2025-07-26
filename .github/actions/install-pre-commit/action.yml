@@ -31,6 +31,20 @@ runs:
           echo "✅ pre-commit is already installed"
         fi
 
+    - name: Install pre-commit-hooks package
+      shell: bash
+      run: |
+        echo "📦 Installing pre-commit-hooks package..."
+        if command -v pip &> /dev/null; then
+          pip install pre-commit-hooks
+          echo "✅ pre-commit-hooks installed with pip"
+        elif command -v pip3 &> /dev/null; then
+          pip3 install pre-commit-hooks
+          echo "✅ pre-commit-hooks installed with pip3"
+        else
+          echo "⚠️ pip not found, skipping pre-commit-hooks installation"
+        fi
+
     - name: Make commit-msg.sh hook executable
       shell: bash
       run: |
@@ -46,6 +60,12 @@ runs:
       run: |
         pre-commit install
         echo "✅ Pre-commit hooks installed"
+
+    - name: Install commit-msg hook
+      shell: bash
+      run: |
+        pre-commit install --hook-type commit-msg
+        echo "✅ Commit-msg hook installed"
 
     - name: Run pre-commit
       shell: bash

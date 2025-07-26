@@ -29,6 +29,18 @@ else
     echo "✅ pre-commit is already installed"
 fi
 
+# Install pre-commit-hooks package
+echo "📦 Installing pre-commit-hooks package..."
+if command -v pip &> /dev/null; then
+    pip install pre-commit-hooks
+    echo "✅ pre-commit-hooks installed with pip"
+elif command -v pip3 &> /dev/null; then
+    pip3 install pre-commit-hooks
+    echo "✅ pre-commit-hooks installed with pip3"
+else
+    echo "⚠️ pip not found, skipping pre-commit-hooks installation"
+fi
+
 # Make the hook script executable
 chmod +x hooks/commit-msg.sh
 echo "✅ Made commit-msg.sh hook executable"
@@ -37,6 +49,10 @@ echo "✅ Made commit-msg.sh hook executable"
 echo "📦 Installing pre-commit hooks..."
 pre-commit install
 
+# Install commit-msg hook specifically
+echo "📦 Installing commit-msg hook..."
+pre-commit install --hook-type commit-msg
+
 echo "✅ Pre-commit hooks installed"
 
 # Run pre-commit checks
@@ -44,8 +60,8 @@ if [ -n "$1" ]; then
     echo "🔍 Running pre-commit checks on changed files: $1"
     pre-commit run --files $1
 else
-    echo "🔍 Running pre-commit checks on all files..."
-    pre-commit run --all-files
+echo "🔍 Running pre-commit checks on all files..."
+pre-commit run --all-files
 fi
 
 echo ""

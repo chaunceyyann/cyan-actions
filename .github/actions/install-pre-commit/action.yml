@@ -1,7 +1,7 @@
 name: Install and Run Pre-Commit
 
 description: |
-  Installs pre-commit if missing, makes hooks/commit-msg executable, installs hooks, and runs pre-commit on changed or all files.
+  Installs pre-commit if missing, makes hooks/commit-msg.sh executable, installs hooks, and runs pre-commit on changed or all files.
 
 inputs:
   files:
@@ -31,14 +31,14 @@ runs:
           echo "✅ pre-commit is already installed"
         fi
 
-    - name: Make commit-msg hook executable
+    - name: Make commit-msg.sh hook executable
       shell: bash
       run: |
-        if [ -f hooks/commit-msg ]; then
-          chmod +x hooks/commit-msg
-          echo "✅ Made commit-msg hook executable"
+        if [ -f hooks/commit-msg.sh ]; then
+          chmod +x hooks/commit-msg.sh
+          echo "✅ Made commit-msg.sh hook executable"
         else
-          echo "⚠️ hooks/commit-msg not found. Skipping chmod."
+          echo "⚠️ hooks/commit-msg.sh not found. Skipping chmod."
         fi
 
     - name: Install pre-commit hooks

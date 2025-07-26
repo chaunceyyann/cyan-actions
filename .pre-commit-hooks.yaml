@@ -1,6 +1,6 @@
 - id: jira-commit-msg
   name: JIRA Commit Message Hook
-  entry: bash hooks/commit-msg
+  entry: bash hooks/commit-msg.sh
   language: script
   stages: [commit-msg]
   description: >

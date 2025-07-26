@@ -108,6 +108,17 @@ jobs:
           timeout-minutes: ${{ inputs.timeout-minutes }}
           aws-region: ${{ env.AWS_REGION }}
 
+      - name: Get commit information
+        id: commit-info
+        run: |
+          COMMIT_MSG=$(git log -1 --pretty=format:"%s")
+          COMMIT_AUTHOR=$(git log -1 --pretty=format:"%an")
+          COMMIT_TIMESTAMP=$(git log -1 --pretty=format:"%aI")
+
+          echo "commit-message=$COMMIT_MSG" >> "$GITHUB_OUTPUT"
+          echo "commit-author=$COMMIT_AUTHOR" >> "$GITHUB_OUTPUT"
+          echo "commit-timestamp=$COMMIT_TIMESTAMP" >> "$GITHUB_OUTPUT"
+
       - name: Generate summary
         run: |
           {
@@ -119,11 +130,15 @@ jobs:
           - **Target Account**: ${{ needs.trigger-codepipeline.outputs.target-account }}
           - **AWS Region**: ${{ env.AWS_REGION }}
 
-          ### Commit Information
-          - **Commit SHA**: ${{ github.sha }}
-          - **Commit Message**: ${{ github.event.head_commit.message }}
-          - **Commit Author**: ${{ github.event.head_commit.author.name }}
-          - **Commit Timestamp**: ${{ github.event.head_commit.timestamp }}
+          ### Pull Request
+          - **PR**: #${{ github.event.number }} - ${{ github.event.pull_request.title }} by ${{ github.event.pull_request.user.login }}
+          - **PR Link**: [View Pull Request](https://github.com/${{ github.repository }}/pull/${{ github.event.number }})
+
+          ### Latest Commit
+          - **SHA**: ${{ github.sha }}
+          - **Message**: ${{ steps.commit-info.outputs.commit-message }}
+          - **Author**: ${{ steps.commit-info.outputs.commit-author }}
+          - **Timestamp**: ${{ steps.commit-info.outputs.commit-timestamp }}
 
           ### Code Quality Check
           - **Sensitive Keywords Found**: ${{ steps.keyword-check.outputs.found }}
@@ -148,13 +163,13 @@ jobs:
         uses: chaunceyyann/cyan-actions/.github/actions/generate-pdf-report@v0.1
         with:
           report-title: "CodePipeline Execution Report"
-          generated-time: ${{ format('{0}', github.event.head_commit.timestamp) }}
+          generated-time: ${{ steps.commit-info.outputs.commit-timestamp }}
           workflow-name: "${{ github.workflow }}"
           run-id: "${{ github.run_id }}"
           pr-number: "${{ github.event.number }}"
           pr-title: "${{ github.event.pull_request.title }}"
           execution-details: '{"Platform": "${{ needs.trigger-codepipeline.outputs.platform }}", "Target Account": "${{ needs.trigger-codepipeline.outputs.target-account }}", "AWS Region": "${{ env.AWS_REGION }}"}'
-          commit-information: '{"SHA": "${{ github.sha }}", "Message": "${{ github.event.head_commit.message }}", "Author": "${{ github.event.head_commit.author.name }}", "Timestamp": "${{ github.event.head_commit.timestamp }}", "Branch": "${{ github.ref_name }}", "Base Ref": "${{ github.base_ref }}"}'
+          commit-information: '{"SHA": "${{ github.sha }}", "Message": "${{ steps.commit-info.outputs.commit-message }}", "Author": "${{ steps.commit-info.outputs.commit-author }}", "Timestamp": "${{ steps.commit-info.outputs.commit-timestamp }}", "Branch": "${{ github.ref_name }}", "Base Ref": "${{ github.base_ref }}"}'
           quality-check: '{"Sensitive Keywords Found": "${{ steps.keyword-check.outputs.found }}", "Patterns Checked": "${{ inputs.patterns }}"}'
           pipeline-status: '{"Execution ID": "${{ needs.trigger-codepipeline.outputs.execution-id }}", "Status": "${{ steps.pipeline-status.outputs.status }}", "Start Time": "${{ steps.pipeline-status.outputs.start-time }}", "Console URL": "https://${{ env.AWS_REGION }}.console.aws.amazon.com/codesuite/codepipeline/pipelines/${{ inputs.pipeline-name }}/executions/${{ needs.trigger-codepipeline.outputs.execution-id }}/view?region=${{ env.AWS_REGION }}"}'
           variables: "${{ steps.pipeline-status.outputs.variables }}"

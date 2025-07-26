@@ -1,0 +1,33 @@
+name: Test Actions and Workflows
+
+on:
+  pull_request:
+    branches: [master, dev]
+
+jobs:
+  test-actions:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      - name: Test Custom Actions
+        uses: ./.github/actions/test-actions
+
+  test-workflows:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      - name: Test Reusable Workflows
+        uses: ./.github/actions/test-workflows
+
+  python-ci:
+    uses: ./.github/workflows/reusable-python-ci.yml
+    with:
+      python-version: '3.11'
+      run-integration-tests: true
+      test-directory: '.github/actions'
+      requirements-file: ''
+      install-command: |
+        # Install dependencies for each action that has requirements.txt
+        find .github/actions -name "requirements.txt" -execdir pip install -r requirements.txt \;

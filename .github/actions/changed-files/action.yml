@@ -8,6 +8,7 @@ inputs:
 outputs:
   files:
     description: "Space-separated list of changed files"
+    value: ${{ steps.get-changed.outputs.files }}
 runs:
   using: "composite"
   steps:
@@ -16,18 +17,42 @@ runs:
       shell: bash
       run: |
         if [[ "$GITHUB_EVENT_NAME" == "pull_request" ]]; then
-          BASE_REF="${{ github.event.pull_request.base.ref }}"
-          git fetch origin "$BASE_REF"
-          FILES=$(git diff --name-only "origin/$BASE_REF...HEAD")
+          BASE_REF="${{ github.base_ref }}"
+          echo "[Info] PR detected, base ref: $BASE_REF"
+
+          # Fetch the base branch
+          git fetch origin "$BASE_REF" || {
+            echo "[Error] Failed to fetch origin/$BASE_REF"
+            echo "files=" >> $GITHUB_OUTPUT
+            exit 0
+          }
+
+          # Try to get changed files using merge base
+          FILES=$(git diff --name-only "origin/$BASE_REF...HEAD" 2>/dev/null || echo "")
+
+          if [[ -z "$FILES" ]]; then
+            echo "[Warning] No merge base found between origin/$BASE_REF and HEAD"
+            echo "[Info] Trying alternative approach using git log..."
+
+            # Fallback: get files changed in commits not in base branch
+            FILES=$(git log --name-only --pretty=format: "origin/$BASE_REF..HEAD" 2>/dev/null | grep -v "^$" | sort -u || echo "")
+
+            if [[ -z "$FILES" ]]; then
+              echo "[Warning] Alternative approach also failed, using empty file list"
+              FILES=""
+            fi
+          fi
         else
-          FILES=$(git diff --name-only ${{ github.event.before }} ${{ github.sha }})
+          echo "[Info] Push event detected"
+          FILES=$(git diff --name-only ${{ github.event.before }} ${{ github.sha }} 2>/dev/null || echo "")
         fi
 
         if [[ -n "${{ inputs.pattern }}" ]]; then
+          echo "[Info] Filtering files with pattern: ${{ inputs.pattern }}"
           FILES=$(echo "$FILES" | grep -E "${{ inputs.pattern }}" || true)
         fi
 
         # Output as space-separated list
         FILES=$(echo "$FILES" | xargs)
-        echo "Changed files: $FILES"
-        echo "files=$FILES" >> $GITHUB_OUTPUT 
+        echo "[Info] Changed files: $FILES"
+        echo "files=$FILES" >> $GITHUB_OUTPUT

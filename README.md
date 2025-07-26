@@ -1,63 +1,61 @@
-# Shared GitHub Actions Workflows & Custom Actions
+# Cyan Actions
 
-This repository serves as a central hub for all my shared [GitHub Actions](https://github.com/features/actions) workflows and custom actions. The goal is to provide reusable, well-documented automation building blocks for use across multiple projects.
+[![Test Custom Actions](https://github.com/chaunceyyann/cyan-actions/actions/workflows/test-custom-actions.yml/badge.svg)](https://github.com/chaunceyyann/cyan-actions/actions/workflows/test-custom-actions.yml)
+[![PR Checks](https://github.com/chaunceyyann/cyan-actions/actions/workflows/pr-checks.yml/badge.svg)](https://github.com/chaunceyyann/cyan-actions/actions/workflows/pr-checks.yml)
 
-## Purpose
+A collection of shared GitHub Actions workflows, custom actions, and development tools for improved CI/CD automation.
 
-- **Centralize**: Host all shared workflows and custom actions in one place.
-- **Reuse**: Make it easy to include and update workflows across repositories.
-- **Customize**: Provide tailored automation solutions for common CI/CD needs.
+## 📚 Documentation
 
-## Usage
+- **[Custom Actions](.github/actions/README.md)** - Reusable composite actions
+- **[Workflows](.github/workflows/README.md)** - Shared CI/CD workflows
+- **[Git Hooks](hooks/README.md)** - Development workflow automation
 
-You can reference workflows or actions from this repository in your own projects. For example:
+## 🚀 Quick Start
 
-### Reusing a Workflow
-
-To reuse a workflow from this repository, use the `uses` keyword in your workflow YAML:
+### Using Shared Workflows
 
 ```yaml
 # .github/workflows/your-workflow.yml
 name: Use Shared Workflow
 on:
-  push:
-    branches: [ main ]
+  pull_request:
+    branches: [main]
 jobs:
-  call-shared-workflow:
-    uses: chaunceyyann/cyan-actions/.github/workflows/shared-workflow.yml@master
+  python-ci:
+    uses: chaunceyyann/cyan-actions/.github/workflows/reusable-python-ci.yml@main
     with:
-      example-input: "Hello, World!"        # replace with real inputs
-    secrets:
-      example-secret: ${{ secrets.MY_SECRET }}  # replace with real secrets
+      python-version: '3.11'
+      run-integration-tests: true
 ```
 
-### Using a Custom Action
-
-To use a custom action from this repository, reference its path and version in your workflow steps:
+### Using Custom Actions
 
 ```yaml
-# .github/workflows/your-workflow.yml
-name: Use Custom Action
-on:
-  push:
-    branches: [ main ]
-jobs:
-  use-custom-action:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: chaunceyyann/cyan-actions/path/to/custom-action@master
-        with:
-          action-input: "Some value"          # replace with real inputs
+# In your workflow steps
+- name: Find changed files
+  uses: chaunceyyann/cyan-actions/.github/actions/changed-files@main
+  with:
+    pattern: ".*\\.py$"
 ```
 
-> **Note**: Update `shared-workflow.yml` and `path/to/custom-action` to the actual file/action paths, and adjust inputs/secrets as needed.
+## 🧪 Testing
 
-## Status
+This repository includes comprehensive testing for all custom actions and workflows:
 
-[![Build Status](https://github.com/chaunceyyann/cyan-actions/actions/workflows/ci.yml/badge.svg)](https://github.com/chaunceyyann/cyan-actions/actions)
+- **Unit Tests**: Test individual functions and components
+- **Integration Tests**: Test complete workflows and actions
+- **Automated CI**: Tests run on every PR and push
 
+See [.github/workflows/test-custom-actions.yml](.github/workflows/test-custom-actions.yml) for details.
 
----
+## 🤝 Contributing
 
-Feel free to contribute or suggest improvements!
+1. Create a feature branch: `feature/ABC-123-description`
+2. Make your changes
+3. Ensure all tests pass
+4. Submit a pull request
+
+## 📄 License
+
+MIT License - see [LICENSE](LICENSE) file for details.

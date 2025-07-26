@@ -1,0 +1,161 @@
+name: Python CI (Reusable)
+
+on:
+  workflow_call:
+    inputs:
+      python-version:
+        description: "Python version to use"
+        required: false
+        default: "3.11"
+        type: string
+      run-integration-tests:
+        description: "Whether to run integration tests"
+        required: false
+        default: true
+        type: boolean
+      python-files-pattern:
+        description: "Regex pattern to find Python files to test"
+        required: false
+        default: ".*\\.py$"
+        type: string
+      test-directory:
+        description: "Directory containing tests"
+        required: false
+        default: "tests"
+        type: string
+      requirements-file:
+        description: "Path to requirements.txt file (optional)"
+        required: false
+        default: "requirements.txt"
+        type: string
+      install-command:
+        description: "Command to install dependencies (defaults to pip install -r requirements.txt if file exists)"
+        required: false
+        default: ""
+        type: string
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ inputs.python-version }}
+
+      - name: Find changed Python files
+        id: find-changed-python
+        uses: ./.github/actions/changed-files
+        with:
+          pattern: ${{ inputs.python-files-pattern }}
+
+      - name: Install lint dependencies
+        run: |
+          pip install flake8
+
+      - name: Run flake8 on changed files
+        run: |
+          # Lint only changed Python files
+          if [[ -n "${{ steps.find-changed-python.outputs.files }}" ]]; then
+            echo "Linting changed Python files: ${{ steps.find-changed-python.outputs.files }}"
+            for file in ${{ steps.find-changed-python.outputs.files }}; do
+              if [[ -f "$file" ]]; then
+                echo "Linting $file"
+                flake8 "$file" --max-line-length=88 --extend-ignore=E203,W503
+              fi
+            done
+          else
+            echo "No Python files changed"
+          fi
+
+  unit-test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ inputs.python-version }}
+
+      - name: Find changed Python files
+        id: find-changed-python
+        uses: ./.github/actions/changed-files
+        with:
+          pattern: ${{ inputs.python-files-pattern }}
+
+      - name: Install test dependencies
+        run: |
+          pip install pytest
+
+      - name: Install project dependencies
+        run: |
+          # Install dependencies if requirements file exists or custom install command provided
+          if [[ -f "${{ inputs.requirements-file }}" ]]; then
+            echo "Installing dependencies from ${{ inputs.requirements-file }}"
+            pip install -r "${{ inputs.requirements-file }}"
+          elif [[ -n "${{ inputs.install-command }}" ]]; then
+            echo "Running custom install command: ${{ inputs.install-command }}"
+            ${{ inputs.install-command }}
+          else
+            echo "No requirements file found and no custom install command provided"
+          fi
+
+      - name: Run unit tests
+        run: |
+          # Run unit tests if test directory exists
+          if [[ -d "${{ inputs.test-directory }}" ]]; then
+            echo "Running unit tests from ${{ inputs.test-directory }}"
+            python -m pytest "${{ inputs.test-directory }}" -v
+          else
+            echo "Test directory ${{ inputs.test-directory }} not found, skipping tests"
+          fi
+
+  integration-test:
+    if: ${{ inputs.run-integration-tests }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ inputs.python-version }}
+
+      - name: Find changed Python files
+        id: find-changed-python
+        uses: ./.github/actions/changed-files
+        with:
+          pattern: ${{ inputs.python-files-pattern }}
+
+      - name: Install test dependencies
+        run: |
+          pip install pytest
+
+      - name: Install project dependencies
+        run: |
+          # Install dependencies if requirements file exists or custom install command provided
+          if [[ -f "${{ inputs.requirements-file }}" ]]; then
+            echo "Installing dependencies from ${{ inputs.requirements-file }}"
+            pip install -r "${{ inputs.requirements-file }}"
+          elif [[ -n "${{ inputs.install-command }}" ]]; then
+            echo "Running custom install command: ${{ inputs.install-command }}"
+            ${{ inputs.install-command }}
+          else
+            echo "No requirements file found and no custom install command provided"
+          fi
+
+      - name: Run integration tests
+        run: |
+          # Run integration tests if integration test directory exists
+          if [[ -d "${{ inputs.test-directory }}/integration" ]]; then
+            echo "Running integration tests from ${{ inputs.test-directory }}/integration"
+            python -m pytest "${{ inputs.test-directory }}/integration" -v
+          else
+            echo "Integration test directory ${{ inputs.test-directory }}/integration not found, skipping integration tests"
+          fi

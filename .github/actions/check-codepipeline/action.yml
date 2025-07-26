@@ -1,0 +1,143 @@
+name: Check CodePipeline Status
+
+description: |
+  Uses AWS CLI to check CodePipeline execution status with polling.
+  Waits for pipeline to complete (not InProgress) with 20-minute timeout.
+
+inputs:
+  execution-id:
+    description: 'CodePipeline execution ID to check'
+    required: true
+    type: string
+  pipeline-name:
+    description: 'CodePipeline name'
+    required: true
+    type: string
+  timeout-minutes:
+    description: 'Timeout in minutes (default: 20)'
+    required: false
+    default: '20'
+    type: string
+  poll-interval-seconds:
+    description: 'Polling interval in seconds (default: 20)'
+    required: false
+    default: '20'
+    type: string
+  aws-region:
+    description: 'AWS region (default: us-east-1)'
+    required: false
+    default: 'us-east-1'
+    type: string
+
+outputs:
+  status:
+    description: 'Final status of the CodePipeline execution'
+    value: ${{ steps.check-pipeline.outputs.status }}
+  execution-id:
+    description: 'The execution ID that was checked'
+    value: ${{ inputs.execution-id }}
+  start-time:
+    description: 'Start time of the pipeline execution'
+    value: ${{ steps.get-pipeline-info.outputs.start-time }}
+  variables:
+    description: 'Pipeline variables (JSON format)'
+    value: ${{ steps.get-pipeline-info.outputs.variables }}
+
+runs:
+  using: "composite"
+  steps:
+    - name: Check CodePipeline Status
+      id: check-pipeline
+      shell: bash
+      run: |
+        EXECUTION_ID="${{ inputs.execution-id }}"
+        PIPELINE_NAME="${{ inputs.pipeline-name }}"
+        TIMEOUT_MINUTES="${{ inputs.timeout-minutes }}"
+        POLL_INTERVAL="${{ inputs.poll-interval-seconds }}"
+        AWS_REGION="${{ inputs.aws-region }}"
+
+        TIMEOUT_SECONDS=$((TIMEOUT_MINUTES * 60))
+        ELAPSED=0
+        START_TIME=$(date +%s)
+
+        while true; do
+          CURRENT_TIME=$(date +%s)
+          ELAPSED=$((CURRENT_TIME - START_TIME))
+
+          if [ $ELAPSED -ge $TIMEOUT_SECONDS ]; then
+            echo "Timeout reached after ${TIMEOUT_MINUTES} minutes"
+            echo "status=timeout" >> $GITHUB_OUTPUT
+            exit 1
+          fi
+
+          set +e
+          STATUS=$(aws codepipeline get-pipeline-execution \
+            --pipeline-name "$PIPELINE_NAME" \
+            --pipeline-execution-id "$EXECUTION_ID" \
+            --region "$AWS_REGION" \
+            --query 'pipelineExecution.status' \
+            --output text 2>&1)
+          EXIT_CODE=$?
+          set -e
+
+          if [ $EXIT_CODE -ne 0 ]; then
+            echo "Failed to get pipeline status: $STATUS"
+            echo "status=error" >> $GITHUB_OUTPUT
+            exit 1
+          fi
+
+          echo "Status: $STATUS (elapsed: ${ELAPSED}s)"
+
+          if [ "$STATUS" != "InProgress" ]; then
+            echo "Pipeline completed with status: $STATUS"
+            echo "status=$STATUS" >> $GITHUB_OUTPUT
+            break
+          fi
+
+          sleep "$POLL_INTERVAL"
+        done
+
+    - name: Get Pipeline Information
+      id: get-pipeline-info
+      shell: bash
+      run: |
+        EXECUTION_ID="${{ inputs.execution-id }}"
+        PIPELINE_NAME="${{ inputs.pipeline-name }}"
+        AWS_REGION="${{ inputs.aws-region }}"
+
+        set +e
+
+        # Get start time from list-pipeline-executions
+        START_TIME=$(aws codepipeline list-pipeline-executions \
+          --pipeline-name "$PIPELINE_NAME" \
+          --region "$AWS_REGION" \
+          --query "pipelineExecutionSummaries[?pipelineExecutionId=='$EXECUTION_ID'].startTime" \
+          --output text 2>/dev/null)
+
+        if [ $? -eq 0 ] && [ -n "$START_TIME" ]; then
+          echo "Pipeline start time: $START_TIME"
+          echo "start-time=$START_TIME" >> $GITHUB_OUTPUT
+        else
+          echo "Could not retrieve start time"
+          echo "start-time=" >> $GITHUB_OUTPUT
+        fi
+
+        # Get variables from get-pipeline-execution
+        VARIABLES=$(aws codepipeline get-pipeline-execution \
+          --pipeline-name "$PIPELINE_NAME" \
+          --pipeline-execution-id "$EXECUTION_ID" \
+          --region "$AWS_REGION" \
+          --query 'pipelineExecution.variables' \
+          --output json 2>/dev/null)
+
+        if [ $? -eq 0 ] && [ -n "$VARIABLES" ]; then
+          echo "Pipeline variables retrieved"
+          # Escape the JSON for GitHub output
+          ESCAPED_VARIABLES=$(echo "$VARIABLES" | sed 's/"/\\"/g' | tr '\n' ' ')
+          echo "variables=$ESCAPED_VARIABLES" >> $GITHUB_OUTPUT
+        else
+          echo "Could not retrieve variables"
+          echo "variables=" >> $GITHUB_OUTPUT
+        fi
+
+        set -e

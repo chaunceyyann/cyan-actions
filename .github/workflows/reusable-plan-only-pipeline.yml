@@ -71,12 +71,24 @@ jobs:
           changed-files: ${{ steps.changes.outputs.files }}
           environment: ${{ steps.platform.outputs.aft_account }}
 
+      - name: Check if account mapping found
+        id: check-mapping
+        run: |
+          if [ "${{ steps.account.outputs.mapping-found }}" = "false" ]; then
+            echo "No account mapping found for changed files. Skipping pipeline trigger."
+            echo "skip_pipeline=true" >> $GITHUB_OUTPUT
+          else
+            echo "Account mapping found. Proceeding with pipeline trigger."
+            echo "skip_pipeline=false" >> $GITHUB_OUTPUT
+          fi
+
       - name: Call AWS AFT CodePipeline Action
         id: codepipeline
+        if: steps.check-mapping.outputs.skip-pipeline != 'true'
         uses: chaunceyyann/cyan-actions/.github/actions/run-codepipeline@v0.1
         with:
           aws-region: ${{ env.AWS_REGION }}
-          aws-target-account: ${{ steps.account.outputs.account_number }}
+          aws-target-account: ${{ steps.account.outputs.account-number }}
           aws-pipeline-account: ${{ steps.platform.outputs.aft_account }}
           commit-sha: ${{ github.sha }}
           aws-access-key-id: ${{ secrets.aws-access-key-id }}
@@ -85,7 +97,7 @@ jobs:
   generate-summary:
     runs-on: ubuntu-latest
     needs: trigger-codepipeline
-    if: needs.trigger-codepipeline.outputs.execution-id != 'null'
+    if: needs.trigger-codepipeline.outputs.execution-id != 'null' && needs.trigger-codepipeline.outputs.execution-id != ''
     env:
       AWS_REGION: ${{ inputs.aws-region }}
     steps:

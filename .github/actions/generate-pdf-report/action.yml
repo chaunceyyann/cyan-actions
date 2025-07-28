@@ -95,11 +95,11 @@ runs:
         export RUN_ID="${{ inputs.run-id }}"
         export PR_NUMBER="${{ inputs.pr-number }}"
         export PR_TITLE="${{ inputs.pr-title }}"
-        export EXECUTION_DETAILS="${{ inputs.execution-details }}"
-        export COMMIT_INFORMATION="${{ inputs.commit-information }}"
-        export QUALITY_CHECK="${{ inputs.quality-check }}"
-        export PIPELINE_STATUS="${{ inputs.pipeline-status }}"
-        export VARIABLES="${{ inputs.variables }}"
+        export EXECUTION_DETAILS='${{ inputs.execution-details }}'
+        export COMMIT_INFORMATION='${{ inputs.commit-information }}'
+        export QUALITY_CHECK='${{ inputs.quality-check }}'
+        export PIPELINE_STATUS='${{ inputs.pipeline-status }}'
+        export VARIABLES='${{ inputs.variables }}'
         export OUTPUT_FILENAME="${{ inputs.output-filename }}"
 
         # Run Python script to generate PDF

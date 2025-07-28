@@ -44,7 +44,7 @@ jobs:
     outputs:
       execution-id: ${{ steps.codepipeline.outputs.execution-id }}
       platform: ${{ steps.platform.outputs.aft_account }}
-      target-account: ${{ steps.account.outputs.account-number }}
+      target-account: ${{ steps.account.outputs.account_number }}
       skip-workflow: ${{ steps.check-mapping.outputs.skip-pipeline }}
     steps:
       - name: Checkout

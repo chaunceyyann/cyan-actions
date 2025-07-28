@@ -5,6 +5,7 @@ Generates professional PDF reports using reportlab.
 """
 
 import json
+import logging
 import os
 import sys
 
@@ -16,8 +17,52 @@ from reportlab.lib.units import inch
 from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
 
 
+def setup_logging():
+    """Setup logging with GitHub Actions format."""
+    logging.basicConfig(
+        level=logging.DEBUG,
+        format="[%(levelname)s] %(message)s",
+        handlers=[logging.StreamHandler(sys.stdout)],
+    )
+    return logging.getLogger(__name__)
+
+
+def debug_environment_variables():
+    """Debug all environment variables used by the script."""
+    logger = logging.getLogger(__name__)
+
+    env_vars = [
+        "REPORT_TITLE",
+        "GENERATED_TIME",
+        "WORKFLOW_NAME",
+        "RUN_ID",
+        "PR_NUMBER",
+        "PR_TITLE",
+        "EXECUTION_DETAILS",
+        "COMMIT_INFORMATION",
+        "QUALITY_CHECK",
+        "PIPELINE_STATUS",
+        "VARIABLES",
+        "OUTPUT_FILENAME",
+    ]
+
+    logger.info("Debugging environment variables:")
+    for var in env_vars:
+        value = os.environ.get(var, "")
+        if value:
+            logger.debug(f"{var}: {value}")
+        else:
+            logger.warning(f"{var}: (empty or not set)")
+
+
 def create_pdf_report():
     """Create a PDF report with the provided data."""
+    logger = logging.getLogger(__name__)
+    logger.info("Starting PDF report generation")
+
+    # Debug environment variables
+    debug_environment_variables()
+
     # Get inputs from environment variables
     report_title = os.environ.get("REPORT_TITLE", "Execution Report")
     generated_time = os.environ.get("GENERATED_TIME", "")
@@ -25,15 +70,45 @@ def create_pdf_report():
     run_id = os.environ.get("RUN_ID", "")
     pr_number = os.environ.get("PR_NUMBER", "")
     pr_title = os.environ.get("PR_TITLE", "")
-    execution_details = json.loads(os.environ.get("EXECUTION_DETAILS", "{}"))
-    commit_information = json.loads(os.environ.get("COMMIT_INFORMATION", "{}"))
-    quality_check = json.loads(os.environ.get("QUALITY_CHECK", "{}"))
-    pipeline_status = json.loads(os.environ.get("PIPELINE_STATUS", "{}"))
+
+    # Parse JSON inputs with error handling
+    try:
+        execution_details = json.loads(os.environ.get("EXECUTION_DETAILS", "{}"))
+        logger.debug(f"Parsed execution_details: {execution_details}")
+    except json.JSONDecodeError as e:
+        logger.error(f"Failed to parse EXECUTION_DETAILS: {e}")
+        execution_details = {}
+
+    try:
+        commit_information = json.loads(os.environ.get("COMMIT_INFORMATION", "{}"))
+        logger.debug(f"Parsed commit_information: {commit_information}")
+    except json.JSONDecodeError as e:
+        logger.error(f"Failed to parse COMMIT_INFORMATION: {e}")
+        commit_information = {}
+
+    try:
+        quality_check = json.loads(os.environ.get("QUALITY_CHECK", "{}"))
+        logger.debug(f"Parsed quality_check: {quality_check}")
+    except json.JSONDecodeError as e:
+        logger.error(f"Failed to parse QUALITY_CHECK: {e}")
+        quality_check = {}
+
+    try:
+        pipeline_status = json.loads(os.environ.get("PIPELINE_STATUS", "{}"))
+        logger.debug(f"Parsed pipeline_status: {pipeline_status}")
+    except json.JSONDecodeError as e:
+        logger.error(f"Failed to parse PIPELINE_STATUS: {e}")
+        pipeline_status = {}
+
     variables = os.environ.get("VARIABLES", "")
     output_filename = os.environ.get("OUTPUT_FILENAME", "report")
 
+    logger.info(f"Output filename: {output_filename}")
+
     # Create PDF document
     filename = f"{output_filename}.pdf"
+    logger.info(f"Creating PDF document: {filename}")
+
     doc = SimpleDocTemplate(
         filename,
         pagesize=A4,
@@ -195,19 +270,23 @@ def create_pdf_report():
         story.append(Paragraph(f"<pre>{variables}</pre>", normal_style))
 
     # Build PDF
+    logger.info("Building PDF document...")
     doc.build(story)
-    print(f"PDF report generated: {filename}")
+    logger.info(f"PDF report generated successfully: {filename}")
     return filename
 
 
 def main():
     """Main function to generate PDF report."""
+    logger = setup_logging()
+
     try:
+        logger.info("Starting PDF generation process")
         filename = create_pdf_report()
-        print(f"Successfully generated PDF: {filename}")
+        logger.info(f"Successfully generated PDF: {filename}")
         sys.exit(0)
     except Exception as e:
-        print(f"Error generating PDF: {e}", file=sys.stderr)
+        logger.error(f"Error generating PDF: {e}")
         sys.exit(1)
 
 

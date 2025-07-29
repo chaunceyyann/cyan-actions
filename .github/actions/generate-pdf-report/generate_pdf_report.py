@@ -287,11 +287,47 @@ def create_pdf_report():
         story.append(quality_table)
         story.append(Spacer(1, 20))
 
-    # Add variables if available
+    # Add variables if available (convert aligned text to table if possible)
     if variables and variables.strip():
         story.append(Spacer(1, 20))
         story.append(Paragraph("Variables", heading_style))
-        story.append(Paragraph(f"<pre>{variables}</pre>", normal_style))
+
+        # Check if variables are in aligned text format
+        lines = variables.strip().split("\n")
+        if len(lines) > 0 and any(
+            "  " in line for line in lines
+        ):  # Has double spaces indicating alignment
+            # Convert aligned text to table data
+            variables_data = []
+            for line in lines:
+                if line.strip():
+                    # Split by multiple spaces to separate columns
+                    parts = [part.strip() for part in line.split("  ") if part.strip()]
+                    if len(parts) >= 2:
+                        variables_data.append(parts[:2])  # Take first two columns
+
+            if variables_data:
+                variables_table = Table(variables_data, colWidths=[2 * inch, 4 * inch])
+                variables_table.setStyle(
+                    TableStyle(
+                        [
+                            ("BACKGROUND", (0, 0), (-1, -1), colors.lightgrey),
+                            ("TEXTCOLOR", (0, 0), (-1, -1), colors.black),
+                            ("ALIGN", (0, 0), (-1, -1), "LEFT"),
+                            ("FONTNAME", (0, 0), (-1, -1), "Helvetica"),
+                            ("FONTSIZE", (0, 0), (-1, -1), 10),
+                            ("BOTTOMPADDING", (0, 0), (-1, -1), 12),
+                            ("BACKGROUND", (0, 0), (0, -1), colors.grey),
+                            ("TEXTCOLOR", (0, 0), (0, -1), colors.whitesmoke),
+                        ]
+                    )
+                )
+                story.append(variables_table)
+            else:
+                story.append(Paragraph(f"<pre>{variables}</pre>", normal_style))
+        else:
+            # Not aligned, just output as preformatted text
+            story.append(Paragraph(f"<pre>{variables}</pre>", normal_style))
 
     # Build PDF
     logger.info("Building PDF document...")

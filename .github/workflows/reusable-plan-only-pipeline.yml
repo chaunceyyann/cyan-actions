@@ -171,48 +171,47 @@ jobs:
           cat << EOF >> "$GITHUB_STEP_SUMMARY"
           ## CodePipeline Execution Summary
 
-          ### Execution Details
-          | **Field**          | **Value**                    |
-          |-------------------|------------------------------|
-          | Platform          | ${{ needs.trigger-codepipeline.outputs.platform }} |
-          | Target Account    | ${{ needs.trigger-codepipeline.outputs.target-account }} |
-          | AWS Region        | ${{ env.AWS_REGION }} |
+                     ### Execution Details
+           | Platform          | ${{ needs.trigger-codepipeline.outputs.platform }} |
+           | Target Account    | ${{ needs.trigger-codepipeline.outputs.target-account }} |
+           | AWS Region        | ${{ env.AWS_REGION }} |
 
-          ### Pull Request
-          | **Field**          | **Value**                    |
-          |-------------------|------------------------------|
-          | PR Number         | #${{ steps.pr-info.outputs.pr-number }} |
-          | Title             | ${{ steps.pr-info.outputs.pr-title }} |
-          | Author            | ${{ steps.pr-info.outputs.pr-author }} |
-          | Link              | [View Pull Request](https://github.com/${{ github.repository }}/pull/${{ steps.pr-info.outputs.pr-number }}) |
+                     ### Pull Request
+           | PR Number         | #${{ steps.pr-info.outputs.pr-number }} |
+           | Title             | ${{ steps.pr-info.outputs.pr-title }} |
+           | Author            | ${{ steps.pr-info.outputs.pr-author }} |
+           | Link              | [View Pull Request](https://github.com/${{ github.repository }}/pull/${{ steps.pr-info.outputs.pr-number }}) |
 
-          ### Latest Commit
-          | **Field**          | **Value**                    |
-          |-------------------|------------------------------|
-          | SHA               | \`${{ github.sha }}\` |
-          | Message           | ${{ steps.commit-info.outputs.commit-message }} |
-          | Author            | ${{ steps.commit-info.outputs.commit-author }} |
-          | Timestamp         | $FORMATTED_COMMIT_TIME |
+                     ### Latest Commit
+           | SHA               | \`${{ github.sha }}\` |
+           | Message           | ${{ steps.commit-info.outputs.commit-message }} |
+           | Author            | ${{ steps.commit-info.outputs.commit-author }} |
+           | Timestamp         | $FORMATTED_COMMIT_TIME |
 
-          ### Code Quality Check
-          | **Field**          | **Value**                    |
-          |-------------------|------------------------------|
-          | Sensitive Keywords | ${{ steps.keyword-check.outputs.found }} |
+                     ### Code Quality Check
+           | Sensitive Keywords | ${{ steps.keyword-check.outputs.found }} |
 
-          ### Pipeline Status
-          | **Field**          | **Value**                    |
-          |-------------------|------------------------------|
-          | Execution ID      | ${{ needs.trigger-codepipeline.outputs.execution-id }} |
-          | Status            | $STATUS_DISPLAY |
-          | Start Time        | $FORMATTED_START_TIME |
+                     ### Pipeline Status
+           | Execution ID      | ${{ needs.trigger-codepipeline.outputs.execution-id }} |
+           | Status            | $STATUS_DISPLAY |
+           | Start Time        | $FORMATTED_START_TIME |
           EOF
-          # Add variables section if available (handled separately due to JSON content)
-          if [ -n "${{ steps.pipeline-status.outputs.variables }}" ]; then
-            echo "### Pipeline Variables" >> "$GITHUB_STEP_SUMMARY"
-            echo '```json' >> "$GITHUB_STEP_SUMMARY"
-            echo "${{ steps.pipeline-status.outputs.variables }}" >> "$GITHUB_STEP_SUMMARY"
-            echo '```' >> "$GITHUB_STEP_SUMMARY"
-          fi
+                     # Add variables section if available (convert aligned text to markdown table)
+           if [ -n "${{ steps.pipeline-status.outputs.variables }}" ]; then
+             echo "### Pipeline Variables" >> "$GITHUB_STEP_SUMMARY"
+
+             # Convert aligned text to markdown table
+             VARIABLES_TEXT="${{ steps.pipeline-status.outputs.variables }}"
+             if echo "$VARIABLES_TEXT" | grep -q ".*[[:space:]]\+.*"; then
+               # Has aligned columns, convert to markdown table
+               echo "| Variable Name | Value |" >> "$GITHUB_STEP_SUMMARY"
+               echo "|---------------|-------|" >> "$GITHUB_STEP_SUMMARY"
+               echo "$VARIABLES_TEXT" | sed 's/^/| /; s/[[:space:]]\+/ | /; s/$/ |/' >> "$GITHUB_STEP_SUMMARY"
+             else
+               # No alignment, just output as text
+               echo "$VARIABLES_TEXT" >> "$GITHUB_STEP_SUMMARY"
+             fi
+           fi
 
           # Add pipeline console link
           echo "- **Pipeline Console**: [View in AWS Console](https://${{ env.AWS_REGION }}.console.aws.amazon.com/codesuite/codepipeline/pipelines/${{ inputs.pipeline-name }}/executions/${{ needs.trigger-codepipeline.outputs.execution-id }}/view?region=${{ env.AWS_REGION }})" >> "$GITHUB_STEP_SUMMARY"

@@ -51,7 +51,7 @@ inputs:
     default: '{}'
     type: string
   variables:
-    description: 'Pipeline variables (JSON string)'
+    description: 'Pipeline variables (aligned text format)'
     required: false
     default: ''
     type: string

@@ -159,22 +159,22 @@ flowchart TD
     Y --> Z[Generate PDF Report]
     Z --> AA[Upload Artifact]
 
-    style A fill:#e3f2fd
-    style B fill:#fff3e0
-    style C fill:#e8f5e8
-    style D fill:#fff8e1
-    style H fill:#ffebee
-    style I fill:#f3e5f5
-    style J fill:#e0f2f1
-    style K fill:#fff3e0
-    style L fill:#fce4ec
-    style M fill:#fff3e0
-    style N fill:#e8f5e8
-    style O fill:#f3e5f5
-    style T fill:#e1f5fe
-    style Y fill:#e1f5fe
-    style Z fill:#f3e5f5
-    style AA fill:#e8f5e8
+    style A fill:#e3f2fd,color:#000
+    style B fill:#fff3e0,color:#000
+    style C fill:#e8f5e8,color:#000
+    style D fill:#fff8e1,color:#000
+    style H fill:#ffebee,color:#000
+    style I fill:#f3e5f5,color:#000
+    style J fill:#e0f2f1,color:#000
+    style K fill:#fff3e0,color:#000
+    style L fill:#fce4ec,color:#000
+    style M fill:#fff3e0,color:#000
+    style N fill:#e8f5e8,color:#000
+    style O fill:#f3e5f5,color:#000
+    style T fill:#e1f5fe,color:#000
+    style Y fill:#e1f5fe,color:#000
+    style Z fill:#f3e5f5,color:#000
+    style AA fill:#e8f5e8,color:#000
 ```
 
 #### 🚀 Usage

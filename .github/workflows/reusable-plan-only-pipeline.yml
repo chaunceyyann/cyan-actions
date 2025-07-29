@@ -196,19 +196,19 @@ jobs:
            | Status            | $STATUS_DISPLAY |
            | Start Time        | $FORMATTED_START_TIME |
           EOF
-                     # Add variables section if available (convert aligned text to markdown table)
+                                # Add variables section if available (key:value format)
            if [ -n "${{ steps.pipeline-status.outputs.variables }}" ]; then
              echo "### Pipeline Variables" >> "$GITHUB_STEP_SUMMARY"
 
-             # Convert aligned text to markdown table
+             # Convert key:value format to markdown table
              VARIABLES_TEXT="${{ steps.pipeline-status.outputs.variables }}"
-             if echo "$VARIABLES_TEXT" | grep -q ".*[[:space:]]\+.*"; then
-               # Has aligned columns, convert to markdown table
+             if echo "$VARIABLES_TEXT" | grep -q ".*:.*"; then
+               # Has key:value pairs, convert to markdown table
                echo "| Variable Name | Value |" >> "$GITHUB_STEP_SUMMARY"
                echo "|---------------|-------|" >> "$GITHUB_STEP_SUMMARY"
-               echo "$VARIABLES_TEXT" | sed 's/^/| /; s/[[:space:]]\+/ | /; s/$/ |/' >> "$GITHUB_STEP_SUMMARY"
+               echo "$VARIABLES_TEXT" | sed 's/, /\n/g' | sed 's/^/| /; s/: / | /; s/$/ |/' >> "$GITHUB_STEP_SUMMARY"
              else
-               # No alignment, just output as text
+               # No key:value format, just output as text
                echo "$VARIABLES_TEXT" >> "$GITHUB_STEP_SUMMARY"
              fi
            fi

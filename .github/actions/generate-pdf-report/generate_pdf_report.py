@@ -287,24 +287,24 @@ def create_pdf_report():
         story.append(quality_table)
         story.append(Spacer(1, 20))
 
-    # Add variables if available (convert aligned text to table if possible)
+    # Add variables if available (convert key:value format to table if possible)
     if variables and variables.strip():
         story.append(Spacer(1, 20))
         story.append(Paragraph("Variables", heading_style))
 
-        # Check if variables are in aligned text format
-        lines = variables.strip().split("\n")
-        if len(lines) > 0 and any(
-            "  " in line for line in lines
-        ):  # Has double spaces indicating alignment
-            # Convert aligned text to table data
+        # Check if variables are in key:value format
+        if ":" in variables and "," in variables:
+            # Convert key:value format to table data
             variables_data = []
-            for line in lines:
-                if line.strip():
-                    # Split by multiple spaces to separate columns
-                    parts = [part.strip() for part in line.split("  ") if part.strip()]
-                    if len(parts) >= 2:
-                        variables_data.append(parts[:2])  # Take first two columns
+            # Split by comma and process each key:value pair
+            pairs = [pair.strip() for pair in variables.split(",") if pair.strip()]
+            for pair in pairs:
+                if ":" in pair:
+                    parts = pair.split(":", 1)  # Split on first colon only
+                    if len(parts) == 2:
+                        key = parts[0].strip()
+                        value = parts[1].strip()
+                        variables_data.append([key, value])
 
             if variables_data:
                 variables_table = Table(variables_data, colWidths=[2 * inch, 4 * inch])
@@ -326,7 +326,7 @@ def create_pdf_report():
             else:
                 story.append(Paragraph(f"<pre>{variables}</pre>", normal_style))
         else:
-            # Not aligned, just output as preformatted text
+            # Not in key:value format, just output as preformatted text
             story.append(Paragraph(f"<pre>{variables}</pre>", normal_style))
 
     # Build PDF

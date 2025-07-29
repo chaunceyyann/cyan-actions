@@ -132,13 +132,12 @@ runs:
 
         if [ $? -eq 0 ] && [ -n "$VARIABLES" ]; then
           echo "Pipeline variables retrieved"
-          # Convert tab-separated output to aligned text format
-          VARIABLES_TEXT=$(echo "$VARIABLES" | column -t -s $'\t' 2>/dev/null || echo "$VARIABLES")
+          # Convert tab/space separated output to key:value format
+          VARIABLES_TEXT=$(echo "$VARIABLES" | sed 's/[[:space:]]\+/: /' | tr '\n' ',' | sed 's/,$//')
           echo "variables=$VARIABLES_TEXT" >> $GITHUB_OUTPUT
         else
           echo "Could not retrieve variables"
           echo "variables=" >> $GITHUB_OUTPUT
-        fi
         fi
 
         set -e

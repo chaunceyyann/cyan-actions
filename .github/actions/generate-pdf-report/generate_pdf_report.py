@@ -8,6 +8,8 @@ import json
 import logging
 import os
 import sys
+from datetime import datetime
+from zoneinfo import ZoneInfo
 
 from reportlab.lib import colors
 from reportlab.lib.enums import TA_CENTER
@@ -27,6 +29,28 @@ def setup_logging():
     return logging.getLogger(__name__)
 
 
+def format_timestamp(timestamp_str, timezone="US/Eastern"):
+    """Format timestamp to US Eastern timezone with pretty format."""
+    if not timestamp_str:
+        return ""
+
+    try:
+        # Parse the ISO timestamp
+        dt = datetime.fromisoformat(timestamp_str.replace("Z", "+00:00"))
+
+        # Convert to US Eastern timezone
+        eastern_tz = ZoneInfo(timezone)
+        eastern_time = dt.astimezone(eastern_tz)
+
+        # Format as "Jan 15, 2024 at 10:30 AM EST"
+        return eastern_time.strftime("%b %d, %Y at %I:%M %p %Z")
+    except Exception as e:
+        logging.getLogger(__name__).warning(
+            f"Failed to format timestamp '{timestamp_str}': {e}"
+        )
+        return timestamp_str
+
+
 def debug_environment_variables():
     """Debug all environment variables used by the script."""
     logger = logging.getLogger(__name__)
@@ -34,8 +58,7 @@ def debug_environment_variables():
     env_vars = [
         "REPORT_TITLE",
         "GENERATED_TIME",
-        "WORKFLOW_NAME",
-        "RUN_ID",
+        "REPOSITORY",
         "PR_NUMBER",
         "PR_TITLE",
         "EXECUTION_DETAILS",
@@ -66,8 +89,7 @@ def create_pdf_report():
     # Get inputs from environment variables
     report_title = os.environ.get("REPORT_TITLE", "Execution Report")
     generated_time = os.environ.get("GENERATED_TIME", "")
-    workflow_name = os.environ.get("WORKFLOW_NAME", "")
-    run_id = os.environ.get("RUN_ID", "")
+    repository = os.environ.get("REPOSITORY", "")
     pr_number = os.environ.get("PR_NUMBER", "")
     pr_title = os.environ.get("PR_TITLE", "")
 
@@ -147,11 +169,10 @@ def create_pdf_report():
     # Metadata
     metadata_data = []
     if generated_time:
-        metadata_data.append(["Generated", generated_time])
-    if workflow_name:
-        metadata_data.append(["Workflow", workflow_name])
-    if run_id:
-        metadata_data.append(["Run ID", run_id])
+        formatted_time = format_timestamp(generated_time)
+        metadata_data.append(["Generated", formatted_time])
+    if repository:
+        metadata_data.append(["Repository", repository])
     if pr_number and pr_title:
         metadata_data.append(["PR", f"#{pr_number} - {pr_title}"])
     elif pr_number:
@@ -176,12 +197,27 @@ def create_pdf_report():
         story.append(metadata_table)
         story.append(Spacer(1, 20))
 
-    # Execution Details
+    # Pipeline Information (Execution Details + Pipeline Status)
+    pipeline_info = {}
     if execution_details:
-        story.append(Paragraph("Execution Details", heading_style))
-        exec_data = [[k, v] for k, v in execution_details.items()]
-        exec_table = Table(exec_data, colWidths=[2 * inch, 4 * inch])
-        exec_table.setStyle(
+        pipeline_info.update(execution_details)
+    if pipeline_status:
+        pipeline_info.update(pipeline_status)
+
+    if pipeline_info:
+        story.append(Paragraph("Pipeline Information", heading_style))
+
+        # Format timestamps in pipeline information
+        formatted_pipeline_info = {}
+        for k, v in pipeline_info.items():
+            if k.lower() in ["start time", "starttime"]:
+                formatted_pipeline_info[k] = format_timestamp(v)
+            else:
+                formatted_pipeline_info[k] = v
+
+        pipeline_data = [[k, v] for k, v in formatted_pipeline_info.items()]
+        pipeline_table = Table(pipeline_data, colWidths=[2 * inch, 4 * inch])
+        pipeline_table.setStyle(
             TableStyle(
                 [
                     ("BACKGROUND", (0, 0), (-1, -1), colors.lightgrey),
@@ -195,13 +231,22 @@ def create_pdf_report():
                 ]
             )
         )
-        story.append(exec_table)
+        story.append(pipeline_table)
         story.append(Spacer(1, 20))
 
     # Commit Information
     if commit_information:
         story.append(Paragraph("Commit Information", heading_style))
-        commit_data = [[k, v] for k, v in commit_information.items()]
+
+        # Format timestamp in commit information
+        formatted_commit_info = {}
+        for k, v in commit_information.items():
+            if k.lower() == "timestamp":
+                formatted_commit_info[k] = format_timestamp(v)
+            else:
+                formatted_commit_info[k] = v
+
+        commit_data = [[k, v] for k, v in formatted_commit_info.items()]
         commit_table = Table(commit_data, colWidths=[2 * inch, 4 * inch])
         commit_table.setStyle(
             TableStyle(
@@ -241,27 +286,6 @@ def create_pdf_report():
         )
         story.append(quality_table)
         story.append(Spacer(1, 20))
-
-    # Pipeline Status
-    if pipeline_status:
-        story.append(Paragraph("Pipeline Status", heading_style))
-        status_data = [[k, v] for k, v in pipeline_status.items()]
-        status_table = Table(status_data, colWidths=[2 * inch, 4 * inch])
-        status_table.setStyle(
-            TableStyle(
-                [
-                    ("BACKGROUND", (0, 0), (-1, -1), colors.lightgrey),
-                    ("TEXTCOLOR", (0, 0), (-1, -1), colors.black),
-                    ("ALIGN", (0, 0), (-1, -1), "LEFT"),
-                    ("FONTNAME", (0, 0), (-1, -1), "Helvetica"),
-                    ("FONTSIZE", (0, 0), (-1, -1), 10),
-                    ("BOTTOMPADDING", (0, 0), (-1, -1), 12),
-                    ("BACKGROUND", (0, 0), (0, -1), colors.grey),
-                    ("TEXTCOLOR", (0, 0), (0, -1), colors.whitesmoke),
-                ]
-            )
-        )
-        story.append(status_table)
 
     # Add variables if available
     if variables and variables.strip():

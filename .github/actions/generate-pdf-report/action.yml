@@ -15,13 +15,8 @@ inputs:
     required: false
     default: ''
     type: string
-  workflow-name:
-    description: 'Name of the workflow'
-    required: false
-    default: ''
-    type: string
-  run-id:
-    description: 'GitHub run ID'
+  repository:
+    description: 'GitHub repository name (e.g., owner/repo)'
     required: false
     default: ''
     type: string
@@ -91,8 +86,7 @@ runs:
         # Set environment variables for Python script
         export REPORT_TITLE="${{ inputs.report-title }}"
         export GENERATED_TIME="${{ inputs.generated-time }}"
-        export WORKFLOW_NAME="${{ inputs.workflow-name }}"
-        export RUN_ID="${{ inputs.run-id }}"
+        export REPOSITORY="${{ inputs.repository }}"
         export PR_NUMBER="${{ inputs.pr-number }}"
         export PR_TITLE="${{ inputs.pr-title }}"
         export EXECUTION_DETAILS='${{ inputs.execution-details }}'

@@ -131,26 +131,50 @@ flowchart TD
     J --> K{Status Complete?}
     K -->|No| L[Wait & Retry]
     L --> J
-    K -->|Yes| M[Generate Summary]
+    K -->|Yes| M{Environment?}
 
-    M --> N[Check Keywords]
-    M --> O[Get Commit Info]
-    M --> P[Get PR Info]
-    M --> Q[Get Pipeline Info]
+    M -->|dev| N[Generate Summary Only]
+    M -->|prod| O[Generate Full Report]
 
-    N --> R[Create GitHub Summary]
-    O --> R
-    P --> R
-    Q --> R
+    N --> P[Check Keywords]
+    N --> Q[Get Commit Info]
+    N --> R[Get PR Info]
+    N --> S[Get Pipeline Info]
 
-    R --> S[Generate PDF Report]
-    S --> T[Upload Artifact]
+    P --> T[Create GitHub Summary]
+    Q --> T
+    R --> T
+    S --> T
 
-    style A fill:#e1f5fe
+    O --> U[Check Keywords]
+    O --> V[Get Commit Info]
+    O --> W[Get PR Info]
+    O --> X[Get Pipeline Info]
+
+    U --> Y[Create GitHub Summary]
+    V --> Y
+    W --> Y
+    X --> Y
+
+    Y --> Z[Generate PDF Report]
+    Z --> AA[Upload Artifact]
+
+    style A fill:#e3f2fd
+    style B fill:#fff3e0
+    style C fill:#e8f5e8
+    style D fill:#fff8e1
     style H fill:#ffebee
-    style T fill:#e8f5e8
-    style R fill:#fff3e0
-    style S fill:#f3e5f5
+    style I fill:#f3e5f5
+    style J fill:#e0f2f1
+    style K fill:#fff3e0
+    style L fill:#fce4ec
+    style M fill:#fff3e0
+    style N fill:#e8f5e8
+    style O fill:#f3e5f5
+    style T fill:#e1f5fe
+    style Y fill:#e1f5fe
+    style Z fill:#f3e5f5
+    style AA fill:#e8f5e8
 ```
 
 #### 🚀 Usage
@@ -214,7 +238,7 @@ Determines platform, finds changed files, maps accounts, and triggers CodePipeli
 - `skip-workflow`: Whether to skip the entire workflow
 
 ##### **generate-summary**
-Checks for sensitive keywords, monitors pipeline status, generates summary, and creates PDF report.
+Checks for sensitive keywords, monitors pipeline status, generates summary, and creates PDF report (prod only).
 
 **Steps:**
 1. **Keyword Check**: Scans code changes for sensitive patterns
@@ -222,8 +246,12 @@ Checks for sensitive keywords, monitors pipeline status, generates summary, and 
 3. **Commit Info**: Retrieves commit details using git commands
 4. **PR Info**: Gets pull request information
 5. **Generate Summary**: Creates comprehensive GitHub step summary
-6. **PDF Report**: Generates professional PDF report
-7. **Upload Artifact**: Uploads PDF as workflow artifact
+6. **PDF Report**: Generates professional PDF report (prod environment only)
+7. **Upload Artifact**: Uploads PDF as workflow artifact (prod environment only)
+
+**Environment Behavior:**
+- **Dev Environment**: Generates GitHub step summary only
+- **Prod Environment**: Generates both GitHub summary and PDF report with artifact upload
 
 #### ✨ Features
 
@@ -231,9 +259,10 @@ Checks for sensitive keywords, monitors pipeline status, generates summary, and 
 - **📁 Smart File Detection**: Only processes relevant changed files for account mapping
 - **🔒 Security Scanning**: Checks for sensitive keywords in code changes
 - **⏱️ Intelligent Monitoring**: Polls pipeline status with configurable timeout
-- **📊 Rich Reporting**: Generates both GitHub summary and PDF reports
+- **📊 Rich Reporting**: Generates GitHub summary for all environments, PDF reports for prod only
 - **🎨 Professional Output**: Formatted tables, status indicators, and timestamps
-- **📦 Artifact Management**: Uploads PDF reports as downloadable artifacts
+- **📦 Artifact Management**: Uploads PDF reports as downloadable artifacts (prod environment)
+- **🌍 Environment-Aware Reporting**: Different reporting levels based on target environment
 - **🔄 Modular Design**: Uses custom actions for maintainability and reusability
 
 #### 📈 Output Examples

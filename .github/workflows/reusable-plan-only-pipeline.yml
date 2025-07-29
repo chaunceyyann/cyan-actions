@@ -224,8 +224,6 @@ jobs:
         uses: chaunceyyann/cyan-actions/.github/actions/generate-pdf-report@v0.1
         with:
           report-title: "CodePipeline Execution Report"
-          generated-time: ${{ steps.commit-info.outputs.commit-timestamp }}
-          repository: "${{ github.event.repository.name }}"
           pr-number: "${{ github.event.number }}"
           pr-title: "${{ github.event.pull_request.title }}"
           execution-details: '{"Platform": "${{ needs.trigger-codepipeline.outputs.platform }}", "Target Account": "${{ needs.trigger-codepipeline.outputs.target-account }}", "AWS Region": "${{ env.AWS_REGION }}"}'

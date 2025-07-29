@@ -107,7 +107,54 @@ jobs:
 
 A comprehensive reusable workflow for triggering AWS CodePipeline plan-only operations with environment-aware account routing, keyword checking, and PDF report generation.
 
-**Usage:**
+#### 🎯 Overview
+
+This workflow automates the process of triggering AWS CodePipeline plan-only executions based on pull request changes. It intelligently routes to the correct AWS account based on the target branch, performs security checks, monitors pipeline execution, and generates comprehensive reports.
+
+#### 📊 Workflow Diagram
+
+```mermaid
+flowchart TD
+    A[Pull Request] --> B{Target Branch?}
+    B -->|master| C[prod_account_number]
+    B -->|dev| D[dev_account_number]
+
+    C --> E[Find Changed Files]
+    D --> E
+
+    E --> F[Account Mapping]
+    F --> G{Mapping Found?}
+    G -->|No| H[Skip Workflow]
+    G -->|Yes| I[Trigger CodePipeline]
+
+    I --> J[Monitor Pipeline Status]
+    J --> K{Status Complete?}
+    K -->|No| L[Wait & Retry]
+    L --> J
+    K -->|Yes| M[Generate Summary]
+
+    M --> N[Check Keywords]
+    M --> O[Get Commit Info]
+    M --> P[Get PR Info]
+    M --> Q[Get Pipeline Info]
+
+    N --> R[Create GitHub Summary]
+    O --> R
+    P --> R
+    Q --> R
+
+    R --> S[Generate PDF Report]
+    S --> T[Upload Artifact]
+
+    style A fill:#e1f5fe
+    style H fill:#ffebee
+    style T fill:#e8f5e8
+    style R fill:#fff3e0
+    style S fill:#f3e5f5
+```
+
+#### 🚀 Usage
+
 ```yaml
 name: Plan-Only CodePipeline
 on:
@@ -117,34 +164,154 @@ on:
 jobs:
   plan-only-codepipeline:
     uses: chaunceyyann/cyan-actions/.github/workflows/reusable-plan-only-pipeline.yml@v0.1
+    with:
+      aws-region: 'us-west-2'
+      pipeline-name: 'aft-customization-plan-only'
+      timeout-minutes: '30'
+      patterns: 'noodle_king,secret_key,password,api_key,token'
+      file-patterns: |
+        ^src/.*
+        ^tests/.*
     secrets:
       aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
       aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
 ```
 
-**Inputs:**
-- `aws-region` (string): AWS region for the pipeline (default: "us-west-2")
-- `pipeline-name` (string): Name of the CodePipeline to trigger (default: "aft-customization-plan-only")
-- `timeout-minutes` (string): Timeout in minutes for pipeline execution (default: "30")
-- `patterns` (string): Comma-separated patterns to check for sensitive keywords (default: "noodle_king,secret_key,password,api_key,token")
-- `file-patterns` (string): Patterns to match changed files for account mapping (default: "^src/.*" and "^tests/.*")
+#### 📋 Inputs
 
-**Secrets:**
-- `aws-access-key-id` (required): AWS access key ID
-- `aws-secret-access-key` (required): AWS secret access key
+| Input | Type | Required | Default | Description |
+|-------|------|----------|---------|-------------|
+| `aws-region` | string | No | `us-west-2` | AWS region for the pipeline |
+| `pipeline-name` | string | No | `aft-customization-plan-only` | Name of the CodePipeline to trigger |
+| `timeout-minutes` | string | No | `30` | Timeout in minutes for pipeline execution |
+| `patterns` | string | No | `noodle_king,secret_key,password,api_key,token` | Comma-separated patterns to check for sensitive keywords |
+| `file-patterns` | string | No | `^src/.*` and `^tests/.*` | Patterns to match changed files for account mapping |
 
-**Jobs:**
-- **trigger-codepipeline**: Determines platform, finds changed files, maps accounts, and triggers CodePipeline
-- **generate-summary**: Checks for sensitive keywords, monitors pipeline status, generates summary, and creates PDF report
+#### 🔐 Secrets
 
-**Features:**
-- Environment-aware account routing (dev/prod based on target branch)
-- Automatic changed file detection and account mapping
-- Sensitive keyword checking in code changes
-- Pipeline status monitoring with timeout
-- Comprehensive summary generation with GitHub step summary
-- Professional PDF report generation and artifact upload
-- Full integration with custom actions for modularity
+| Secret | Required | Description |
+|--------|----------|-------------|
+| `aws-access-key-id` | Yes | AWS access key ID for pipeline access |
+| `aws-secret-access-key` | Yes | AWS secret access key for pipeline access |
+
+#### 🔄 Jobs
+
+##### **trigger-codepipeline**
+Determines platform, finds changed files, maps accounts, and triggers CodePipeline.
+
+**Steps:**
+1. **Checkout**: Deep clone repository for file analysis
+2. **Determine Platform**: Sets platform based on target branch (master → prod, dev → dev)
+3. **Find Changed Files**: Uses `changed-files` action to detect modified files
+4. **Account Mapping**: Maps changed files to AWS account numbers
+5. **Check Mapping**: Validates if account mapping was found
+6. **Trigger Pipeline**: Calls AWS CodePipeline with account-specific parameters
+
+**Outputs:**
+- `execution-id`: CodePipeline execution ID
+- `platform`: Determined platform (prod_account_number/dev_account_number)
+- `target-account`: Mapped AWS account number
+- `skip-workflow`: Whether to skip the entire workflow
+
+##### **generate-summary**
+Checks for sensitive keywords, monitors pipeline status, generates summary, and creates PDF report.
+
+**Steps:**
+1. **Keyword Check**: Scans code changes for sensitive patterns
+2. **Pipeline Status**: Monitors CodePipeline execution with polling
+3. **Commit Info**: Retrieves commit details using git commands
+4. **PR Info**: Gets pull request information
+5. **Generate Summary**: Creates comprehensive GitHub step summary
+6. **PDF Report**: Generates professional PDF report
+7. **Upload Artifact**: Uploads PDF as workflow artifact
+
+#### ✨ Features
+
+- **🔍 Environment-Aware Routing**: Automatically routes to dev/prod accounts based on target branch
+- **📁 Smart File Detection**: Only processes relevant changed files for account mapping
+- **🔒 Security Scanning**: Checks for sensitive keywords in code changes
+- **⏱️ Intelligent Monitoring**: Polls pipeline status with configurable timeout
+- **📊 Rich Reporting**: Generates both GitHub summary and PDF reports
+- **🎨 Professional Output**: Formatted tables, status indicators, and timestamps
+- **📦 Artifact Management**: Uploads PDF reports as downloadable artifacts
+- **🔄 Modular Design**: Uses custom actions for maintainability and reusability
+
+#### 📈 Output Examples
+
+**GitHub Step Summary:**
+```markdown
+## CodePipeline Execution Summary
+
+### Execution Details
+| Platform          | prod_account_number |
+| Target Account    | 123456789012 |
+| AWS Region        | us-west-2 |
+
+### Pull Request
+| PR Number         | #42 |
+| Title             | Add new feature for user authentication |
+| Author            | john-doe |
+| Link              | [View Pull Request](https://github.com/chaunceyyann/cyan-actions/pull/42) |
+
+### Pipeline Status
+| Execution ID      | xyz789 |
+| Status            | ✅ **Succeeded** ✅ |
+| Start Time        | Jan 15, 2024 at 5:25 AM EST |
+
+### Pipeline Variables
+| Variable Name | Value |
+|---------------|-------|
+| VENDED_ACCOUNT_ID | 123456789012 |
+| ENVIRONMENT | production |
+```
+
+**PDF Report:**
+- Professional PDF with tables and styling
+- Formatted timestamps in US Eastern timezone
+- Combined pipeline information sections
+- Downloadable as workflow artifact
+
+#### 🔧 Customization
+
+**Custom Account Mapping:**
+```yaml
+with:
+  file-patterns: |
+    ^infrastructure/.*
+    ^terraform/.*
+    ^cloudformation/.*
+```
+
+**Custom Security Patterns:**
+```yaml
+with:
+  patterns: 'custom_secret,internal_key,prod_password'
+```
+
+**Different Pipeline:**
+```yaml
+with:
+  pipeline-name: 'my-custom-plan-pipeline'
+  aws-region: 'us-east-1'
+  timeout-minutes: '45'
+```
+
+#### 🚨 Error Handling
+
+- **No Account Mapping**: Workflow skips gracefully with informative message
+- **Pipeline Timeout**: Configurable timeout with detailed error reporting
+- **AWS Errors**: Comprehensive error messages with debugging information
+- **Missing Files**: Graceful handling of missing or inaccessible files
+
+#### 📚 Integration
+
+This workflow integrates with several custom actions:
+- `changed-files`: Detects modified files
+- `account-mapping`: Maps files to AWS accounts
+- `run-codepipeline`: Triggers AWS CodePipeline
+- `check-keywords`: Scans for sensitive patterns
+- `check-codepipeline`: Monitors pipeline status
+- `generate-pdf-report`: Creates PDF reports
 
 ### [test-custom-actions.yml](test-custom-actions.yml)
 

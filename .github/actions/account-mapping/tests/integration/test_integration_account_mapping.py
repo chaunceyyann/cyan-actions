@@ -78,7 +78,7 @@ prod:
         self.assertIn("account_number=123456789012", result.stdout)
 
     def test_script_execution_with_no_matching_files(self):
-        """Test that the script fails when no matching files are found."""
+        """Test that the script returns SKIP when no matching files are found."""
         env = os.environ.copy()
         env["CHANGED_FILES"] = "docs/readme.md config/settings.yml"
         env["ENVIRONMENT"] = "dev"
@@ -91,8 +91,10 @@ prod:
             cwd=self.script_dir,
         )
 
-        # Script should exit with error code 1
-        self.assertEqual(result.returncode, 1)
+        # Script should return 0 and output SKIP
+        self.assertEqual(result.returncode, 0)
+        self.assertIn("account_number=SKIP", result.stdout)
+        self.assertIn("mapping_found=false", result.stdout)
         self.assertIn("No matching directory found", result.stderr)
 
     def test_script_execution_with_unknown_environment(self):
@@ -113,7 +115,7 @@ prod:
         self.assertIn("Unknown environment 'unknown'", result.stderr)
 
     def test_script_execution_with_empty_changed_files(self):
-        """Test that the script fails with empty changed files."""
+        """Test that the script returns SKIP with empty changed files."""
         env = os.environ.copy()
         env["CHANGED_FILES"] = ""
         env["ENVIRONMENT"] = "dev"
@@ -126,7 +128,9 @@ prod:
             cwd=self.script_dir,
         )
 
-        self.assertEqual(result.returncode, 1)
+        self.assertEqual(result.returncode, 0)
+        self.assertIn("account_number=SKIP", result.stdout)
+        self.assertIn("mapping_found=false", result.stdout)
         self.assertIn("No matching directory found", result.stderr)
 
     def test_script_execution_with_prod_environment(self):

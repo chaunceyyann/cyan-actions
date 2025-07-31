@@ -118,8 +118,16 @@ prod:
             "ENVIRONMENT": "dev",
         }.get(key, default)
 
-        with self.assertRaises(SystemExit):
+        # Capture stdout
+        from io import StringIO
+
+        with patch("sys.stdout", new=StringIO()) as mock_stdout:
             map_accounts.main()
+            output = mock_stdout.getvalue()
+
+            # Check that the script returns SKIP and mapping_found=false
+            self.assertIn("account_number=SKIP", output)
+            self.assertIn("mapping_found=false", output)
 
     @patch("os.environ.get")
     def test_main_unknown_environment(self, mock_env_get):

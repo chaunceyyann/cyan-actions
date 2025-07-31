@@ -30,6 +30,11 @@ on:
           ^src/.*
           ^tests/.*
         type: string
+      codebuild-runner:
+        description: 'CodeBuild runner label to use'
+        required: false
+        default: ''
+        type: string
     secrets:
       aws-access-key-id:
         required: true
@@ -38,7 +43,7 @@ on:
 
 jobs:
   trigger-codepipeline:
-    runs-on: ubuntu-latest
+    runs-on: ${{ inputs.codebuild-runner != '' && format('codebuild-{0}-{1}-{2}', inputs.codebuild-runner, github.run_id, github.run_attempt) || 'ubuntu-latest' }}
     env:
       AWS_REGION: ${{ inputs.aws-region }}
     outputs:
@@ -96,7 +101,7 @@ jobs:
           aws-secret-access-key: ${{ secrets.aws-secret-access-key }}
 
   generate-summary:
-    runs-on: ubuntu-latest
+    runs-on: ${{ inputs.codebuild-runner != '' && format('codebuild-{0}-{1}-{2}', inputs.codebuild-runner, github.run_id, github.run_attempt) || 'ubuntu-latest' }}
     needs: trigger-codepipeline
     if: needs.trigger-codepipeline.outputs.skip-workflow != 'true' && needs.trigger-codepipeline.outputs.execution-id != 'null' && needs.trigger-codepipeline.outputs.execution-id != ''
     env:

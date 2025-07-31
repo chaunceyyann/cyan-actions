@@ -13,6 +13,11 @@ on:
         required: false
         default: '0'
         type: string
+      codebuild-runner:
+        description: 'CodeBuild runner label to use'
+        required: false
+        default: ''
+        type: string
 
     secrets:
       # Add any secrets that might be needed for pre-commit hooks
@@ -21,7 +26,7 @@ on:
 
 jobs:
   pre-commit:
-    runs-on: ubuntu-latest
+    runs-on: ${{ inputs.codebuild-runner != '' && format('codebuild-{0}-{1}-{2}', inputs.codebuild-runner, github.run_id, github.run_attempt) || 'ubuntu-latest' }}
     steps:
       - uses: actions/checkout@v4
         with:

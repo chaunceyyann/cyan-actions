@@ -40,7 +40,7 @@ outputs:
     description: 'Start time of the pipeline execution'
     value: ${{ steps.get-pipeline-info.outputs.start-time }}
   variables:
-    description: 'Pipeline variables (JSON format)'
+    description: 'Pipeline variables (aligned text format)'
     value: ${{ steps.get-pipeline-info.outputs.variables }}
 
 runs:
@@ -128,13 +128,13 @@ runs:
           --pipeline-execution-id "$EXECUTION_ID" \
           --region "$AWS_REGION" \
           --query 'pipelineExecution.variables' \
-          --output json 2>/dev/null)
+          --output text 2>/dev/null)
 
         if [ $? -eq 0 ] && [ -n "$VARIABLES" ]; then
           echo "Pipeline variables retrieved"
-          # Escape the JSON for GitHub output
-          ESCAPED_VARIABLES=$(echo "$VARIABLES" | sed 's/"/\\"/g' | tr '\n' ' ')
-          echo "variables=$ESCAPED_VARIABLES" >> $GITHUB_OUTPUT
+          # Convert tab/space separated output to key:value format
+          VARIABLES_TEXT=$(echo "$VARIABLES" | sed 's/[[:space:]]\+/: /' | tr '\n' ',' | sed 's/,$//')
+          echo "variables=$VARIABLES_TEXT" >> $GITHUB_OUTPUT
         else
           echo "Could not retrieve variables"
           echo "variables=" >> $GITHUB_OUTPUT

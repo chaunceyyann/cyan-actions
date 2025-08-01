@@ -84,8 +84,12 @@ runs:
 
         echo "Processing PR #$PR_NUMBER"
 
-        # Get check runs for this PR using GitHub CLI
+                # Get check runs for this PR using GitHub CLI
         CHECK_RUNS=$(gh api repos/$REPO/commits/${{ github.sha }}/check-runs 2>/dev/null || echo '{"check_runs":[]}')
+
+        # Debug: Show all available check runs
+        echo "Available check runs:"
+        echo "$CHECK_RUNS" | jq -r '.check_runs[] | "  - \(.name) (status: \(.status), conclusion: \(.conclusion // "null"))"' 2>/dev/null || echo "  No check runs found or jq not available"
 
         # Parse required checks
         IFS=',' read -ra REQUIRED_ARRAY <<< "$REQUIRED_CHECKS"
@@ -95,14 +99,17 @@ runs:
         ALL_SUCCESSFUL=true
         CHECKS_LIST=""
 
-        for check in "${REQUIRED_ARRAY[@]}"; do
-          check=$(echo "$check" | xargs)  # trim whitespace
-          echo "Checking for: $check"
+                  for check in "${REQUIRED_ARRAY[@]}"; do
+            check=$(echo "$check" | xargs)  # trim whitespace
+            echo "Checking for: $check"
 
-          # Find matching check runs (check for both exact match and workflow/job pattern)
-          CHECK_STATUS=$(echo "$CHECK_RUNS" | jq -r ".check_runs[] | select(.name == \"$check\" or .name | endswith(\"/$check\") or .name | test(\"$check\"; \"i\")) | .status" | head -1)
-          CHECK_CONCLUSION=$(echo "$CHECK_RUNS" | jq -r ".check_runs[] | select(.name == \"$check\" or .name | endswith(\"/$check\") or .name | test(\"$check\"; \"i\")) | .conclusion" | head -1)
-          CHECK_NAME=$(echo "$CHECK_RUNS" | jq -r ".check_runs[] | select(.name == \"$check\" or .name | endswith(\"/$check\") or .name | test(\"$check\"; \"i\")) | .name" | head -1)
+            # Debug: Show what patterns we're looking for
+            echo "  Looking for patterns: exact='$check', endswith='/$check', contains='$check'"
+
+            # Find matching check runs (check for both exact match and workflow/job pattern)
+            CHECK_STATUS=$(echo "$CHECK_RUNS" | jq -r ".check_runs[] | select(.name == \"$check\" or .name | endswith(\"/$check\") or .name | test(\"$check\"; \"i\")) | .status" | head -1)
+            CHECK_CONCLUSION=$(echo "$CHECK_RUNS" | jq -r ".check_runs[] | select(.name == \"$check\" or .name | endswith(\"/$check\") or .name | test(\"$check\"; \"i\")) | .conclusion" | head -1)
+            CHECK_NAME=$(echo "$CHECK_RUNS" | jq -r ".check_runs[] | select(.name == \"$check\" or .name | endswith(\"/$check\") or .name | test(\"$check\"; \"i\")) | .name" | head -1)
 
           if [[ -n "$CHECK_NAME" ]]; then
             if [[ "$CHECK_STATUS" != "completed" ]]; then

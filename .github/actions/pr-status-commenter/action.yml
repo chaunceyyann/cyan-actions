@@ -99,10 +99,10 @@ runs:
           check=$(echo "$check" | xargs)  # trim whitespace
           echo "Checking for: $check"
 
-          # Find matching check runs
-          CHECK_STATUS=$(echo "$CHECK_RUNS" | jq -r ".check_runs[] | select(.name | test(\"$check\"; \"i\")) | .status" | head -1)
-          CHECK_CONCLUSION=$(echo "$CHECK_RUNS" | jq -r ".check_runs[] | select(.name | test(\"$check\"; \"i\")) | .conclusion" | head -1)
-          CHECK_NAME=$(echo "$CHECK_RUNS" | jq -r ".check_runs[] | select(.name | test(\"$check\"; \"i\")) | .name" | head -1)
+          # Find matching check runs (check for both exact match and workflow/job pattern)
+          CHECK_STATUS=$(echo "$CHECK_RUNS" | jq -r ".check_runs[] | select(.name == \"$check\" or .name | endswith(\"/$check\") or .name | test(\"$check\"; \"i\")) | .status" | head -1)
+          CHECK_CONCLUSION=$(echo "$CHECK_RUNS" | jq -r ".check_runs[] | select(.name == \"$check\" or .name | endswith(\"/$check\") or .name | test(\"$check\"; \"i\")) | .conclusion" | head -1)
+          CHECK_NAME=$(echo "$CHECK_RUNS" | jq -r ".check_runs[] | select(.name == \"$check\" or .name | endswith(\"/$check\") or .name | test(\"$check\"; \"i\")) | .name" | head -1)
 
           if [[ -n "$CHECK_NAME" ]]; then
             if [[ "$CHECK_STATUS" != "completed" ]]; then

@@ -84,11 +84,38 @@ runs:
 
         echo "Processing PR #$PR_NUMBER"
 
-                # Get check runs for this PR using GitHub CLI
-        CHECK_RUNS=$(gh api repos/$REPO/commits/${{ github.sha }}/check-runs 2>/dev/null || echo '{"check_runs":[]}')
+                        # Get the latest commit SHA from the PR
+        echo "Getting latest commit SHA from PR #$PR_NUMBER"
+        LATEST_SHA=$(gh api repos/$REPO/pulls/$PR_NUMBER | jq -r '.head.sha')
+        echo "Latest commit SHA: $LATEST_SHA"
+
+        # Debug: Show what we're querying
+        echo "Querying check runs for:"
+        echo "  Repo: $REPO"
+        echo "  Latest Commit SHA: $LATEST_SHA"
+        echo "  PR Number: $PR_NUMBER"
+
+        # Get check runs for this PR using GitHub CLI
+        echo "Running: gh api repos/$REPO/commits/$LATEST_SHA/check-runs"
+        CHECK_RUNS=$(gh api repos/$REPO/commits/$LATEST_SHA/check-runs 2>&1)
+        echo "API Response: $CHECK_RUNS"
+
+        # If the API call failed, try a different approach
+        if [[ "$CHECK_RUNS" == *"Not Found"* ]] || [[ "$CHECK_RUNS" == *"error"* ]]; then
+          echo "API call failed, trying alternative approach..."
+          # Try getting check runs for the PR instead of the commit
+          CHECK_RUNS=$(gh api repos/$REPO/pulls/$PR_NUMBER/checks 2>&1)
+          echo "Alternative API Response: $CHECK_RUNS"
+        fi
+
+        # If still no data, use empty array
+        if [[ "$CHECK_RUNS" == *"Not Found"* ]] || [[ "$CHECK_RUNS" == *"error"* ]] || [[ -z "$CHECK_RUNS" ]]; then
+          echo "No check runs found, using empty array"
+          CHECK_RUNS='{"check_runs":[]}'
+        fi
 
         # Debug: Show all available check runs
-        echo $CHECK_RUNS
+        echo "Final CHECK_RUNS: $CHECK_RUNS"
         echo "Available check runs:"
         echo "$CHECK_RUNS" | jq -r '.check_runs[] | "  - \(.name) (status: \(.status), conclusion: \(.conclusion // "null"))"' 2>/dev/null || echo "  No check runs found or jq not available"
 

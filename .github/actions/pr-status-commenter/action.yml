@@ -88,6 +88,7 @@ runs:
         CHECK_RUNS=$(gh api repos/$REPO/commits/${{ github.sha }}/check-runs 2>/dev/null || echo '{"check_runs":[]}')
 
         # Debug: Show all available check runs
+        echo $CHECK_RUNS
         echo "Available check runs:"
         echo "$CHECK_RUNS" | jq -r '.check_runs[] | "  - \(.name) (status: \(.status), conclusion: \(.conclusion // "null"))"' 2>/dev/null || echo "  No check runs found or jq not available"
 
@@ -103,8 +104,12 @@ runs:
             check=$(echo "$check" | xargs)  # trim whitespace
             echo "Checking for: $check"
 
-            # Debug: Show what patterns we're looking for
+                        # Debug: Show what patterns we're looking for
             echo "  Looking for patterns: contains='/$check/', endswith='/$check', contains='$check'"
+
+            # Debug: Show all check run names we're checking against
+            echo "  Available check run names:"
+            echo "$CHECK_RUNS" | jq -r '.check_runs[] | "    - \(.name)"' 2>/dev/null || echo "    No check runs found"
 
             # Find matching check runs (check for job name in the full check run name)
             CHECK_STATUS=$(echo "$CHECK_RUNS" | jq -r ".check_runs[] | select(.name | contains(\"/$check/\") or .name | endswith(\"/$check\") or .name | test(\"$check\"; \"i\")) | .status" | head -1)

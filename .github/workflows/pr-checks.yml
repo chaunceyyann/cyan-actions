@@ -1,18 +1,49 @@
-name: PR Checks
+name: PR Checks with Status Comments
 
 on:
   pull_request:
-    branches: [master, dev]
+    types: [opened, synchronize, reopened]
+  workflow_run:
+    workflows: ["Pre-commit Checks", "Terraform Lint", "Python CI"]
+    types: [completed]
 
 jobs:
+  # Run the actual checks
   pre-commit:
     uses: ./.github/workflows/reusable-pre-commit.yml
-    with:
-      python-version: '3.x'
-      fetch-depth: '0'
 
   terraform-lint:
     uses: ./.github/workflows/reusable-terraform-lint.yml
+
+  # Comment on PR status after checks complete
+  comment-status:
+    needs: [pre-commit, terraform-lint]
+    uses: ./.github/workflows/reusable-pr-status-commenter.yml
     with:
-      working-directory: '.'
-      fetch-depth: '0'
+      required-checks: "pre-commit,terraform-lint"
+      success-template: |
+        🎉 **All checks passed!**
+
+        ✅ **Pre-commit checks** - Code quality and formatting
+        ✅ **Terraform lint** - Infrastructure code validation
+
+        This PR is ready for review! 🚀
+
+        📋 **Check Results:**
+        - [View all checks](https://github.com/{{repo}}/pull/{{pr_number}}/checks)
+
+        *Automated by PR Status Commenter*
+      failure-template: |
+        ❌ **Some checks failed**
+
+        Please review and fix the issues below before requesting a review:
+
+        {{checks}}
+
+        📋 **Check Results:**
+        - [View all checks](https://github.com/{{repo}}/pull/{{pr_number}}/checks)
+
+        *Automated by PR Status Commenter*
+      bot-name: "PR Check Bot"
+    secrets:
+      github-token: ${{ secrets.GITHUB_TOKEN }}

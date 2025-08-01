@@ -48,6 +48,7 @@ inputs:
     description: "Check suite ID to monitor (optional, will auto-detect if not provided)"
     required: false
     default: ""
+
 outputs:
   commented:
     description: "Whether a comment was posted (true/false)"
@@ -69,156 +70,116 @@ runs:
         PREVENT_DUPLICATES="${{ inputs.prevent-duplicates }}"
         INCLUDE_CHECK_LINKS="${{ inputs.include-check-links }}"
         BOT_NAME="${{ inputs.bot-name }}"
-        CHECK_SUITE_ID="${{ inputs.check-suite-id }}"
 
-        # Create temporary script
-        cat > /tmp/comment-script.js << 'EOF'
-        const core = require('@actions/core');
-        const github = require('@actions/github');
+        # Get PR number from context
+        PR_NUMBER="${{ github.event.pull_request.number }}"
+        REPO="${{ github.repository }}"
 
-        async function run() {
-          try {
-            const requiredChecks = core.getInput('required-checks').split(',').map(c => c.trim());
-            const successTemplate = core.getInput('success-template');
-            const failureTemplate = core.getInput('failure-template');
-            const preventDuplicates = core.getInput('prevent-duplicates') === 'true';
-            const includeCheckLinks = core.getInput('include-check-links') === 'true';
-            const botName = core.getInput('bot-name');
-            const checkSuiteId = core.getInput('check-suite-id');
+        if [[ -z "$PR_NUMBER" ]]; then
+          echo "No PR number found, skipping comment"
+          echo "commented=false" >> $GITHUB_OUTPUT
+          echo "comment-type=none" >> $GITHUB_OUTPUT
+          exit 0
+        fi
 
-            const octokit = github.getOctokit(process.env.GITHUB_TOKEN);
-            const context = github.context;
+        echo "Processing PR #$PR_NUMBER"
 
-            // Get check suite if not provided
-            let suiteId = checkSuiteId;
-            if (!suiteId) {
-              const { data: checkSuite } = await octokit.rest.checks.getSuite({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                check_suite_id: context.payload.check_suite?.id || context.sha
-              });
-              suiteId = checkSuite.id;
-            }
+        # Get check runs for this PR using GitHub CLI
+        CHECK_RUNS=$(gh api repos/$REPO/commits/${{ github.sha }}/check-runs 2>/dev/null || echo '{"check_runs":[]}')
 
-            // Get PR information
-            const { data: checkSuite } = await octokit.rest.checks.getSuite({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              check_suite_id: suiteId
-            });
+        # Parse required checks
+        IFS=',' read -ra REQUIRED_ARRAY <<< "$REQUIRED_CHECKS"
 
-            if (!checkSuite.pull_requests || checkSuite.pull_requests.length === 0) {
-              console.log('No PR found for this check suite');
-              core.setOutput('commented', 'false');
-              core.setOutput('comment-type', 'none');
-              return;
-            }
+        # Check status of each required check
+        ALL_COMPLETED=true
+        ALL_SUCCESSFUL=true
+        CHECKS_LIST=""
 
-            const pr = checkSuite.pull_requests[0];
-            const prNumber = pr.number;
+        for check in "${REQUIRED_ARRAY[@]}"; do
+          check=$(echo "$check" | xargs)  # trim whitespace
+          echo "Checking for: $check"
 
-            // Get all check runs for this PR
-            const { data: checkRuns } = await octokit.rest.checks.listForRef({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              ref: checkSuite.head_sha
-            });
+          # Find matching check runs
+          CHECK_STATUS=$(echo "$CHECK_RUNS" | jq -r ".check_runs[] | select(.name | test(\"$check\"; \"i\")) | .status" | head -1)
+          CHECK_CONCLUSION=$(echo "$CHECK_RUNS" | jq -r ".check_runs[] | select(.name | test(\"$check\"; \"i\")) | .conclusion" | head -1)
+          CHECK_NAME=$(echo "$CHECK_RUNS" | jq -r ".check_runs[] | select(.name | test(\"$check\"; \"i\")) | .name" | head -1)
 
-            // Filter for required checks
-            const relevantChecks = checkRuns.check_runs.filter(check =>
-              requiredChecks.some(required => check.name.toLowerCase().includes(required.toLowerCase()))
-            );
+          if [[ -n "$CHECK_NAME" ]]; then
+            if [[ "$CHECK_STATUS" != "completed" ]]; then
+              ALL_COMPLETED=false
+              echo "Check $CHECK_NAME is not completed (status: $CHECK_STATUS)"
+            else
+              if [[ "$CHECK_CONCLUSION" == "success" ]]; then
+                CHECKS_LIST+="- ✅ $CHECK_NAME"$'\n'
+              else
+                ALL_SUCCESSFUL=false
+                CHECKS_LIST+="- ❌ $CHECK_NAME"$'\n'
+              fi
+            fi
+          else
+            echo "No check found matching pattern: $check"
+            ALL_COMPLETED=false
+          fi
+        done
 
-            // Check if all required checks are completed and successful
-            const allCompleted = relevantChecks.every(check => check.status === 'completed');
-            const allSuccessful = relevantChecks.every(check => check.conclusion === 'success');
+        echo "All completed: $ALL_COMPLETED"
+        echo "All successful: $ALL_SUCCESSFUL"
 
-            console.log(`Required checks: ${relevantChecks.map(c => c.name).join(', ')}`);
-            console.log(`All completed: ${allCompleted}`);
-            console.log(`All successful: ${allSuccessful}`);
+        if [[ "$ALL_COMPLETED" != "true" ]]; then
+          echo "Not all checks are completed yet"
+          echo "commented=false" >> $GITHUB_OUTPUT
+          echo "comment-type=none" >> $GITHUB_OUTPUT
+          exit 0
+        fi
 
-            if (!allCompleted) {
-              console.log('Not all checks are completed yet');
-              core.setOutput('commented', 'false');
-              core.setOutput('comment-type', 'none');
-              return;
-            }
+        # Determine comment type and template
+        if [[ "$ALL_SUCCESSFUL" == "true" ]]; then
+          COMMENT_TYPE="success"
+          TEMPLATE="$SUCCESS_TEMPLATE"
+          SEARCH_TEXT="✅ All PR checks passed successfully!"
+        else
+          COMMENT_TYPE="failure"
+          TEMPLATE="$FAILURE_TEMPLATE"
+          SEARCH_TEXT="❌ Some PR checks failed"
+        fi
 
-            // Determine comment type and template
-            let commentType = 'none';
-            let template = '';
-            let searchText = '';
+        # Check for existing comment if prevent_duplicates is enabled
+        SHOULD_POST=true
+        if [[ "$PREVENT_DUPLICATES" == "true" ]]; then
+          EXISTING_COMMENTS=$(gh api repos/$REPO/issues/$PR_NUMBER/comments 2>/dev/null || echo '[]')
 
-            if (allSuccessful) {
-              commentType = 'success';
-              template = successTemplate;
-              searchText = '✅ All PR checks passed successfully!';
-            } else {
-              commentType = 'failure';
-              template = failureTemplate;
-              searchText = '❌ Some PR checks failed';
-            }
+          if echo "$EXISTING_COMMENTS" | jq -e ".[] | select(.user.login == \"github-actions[bot]\" and .body | contains(\"$SEARCH_TEXT\"))" > /dev/null; then
+            SHOULD_POST=false
+            echo "Duplicate comment found, skipping"
+          fi
+        fi
 
-            // Check for existing comment if prevent_duplicates is enabled
-            let shouldPost = true;
-            if (preventDuplicates) {
-              const { data: comments } = await octokit.rest.issues.listComments({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                issue_number: prNumber
-              });
+        if [[ "$SHOULD_POST" == "true" ]]; then
+          # Prepare comment body
+          COMMENT_BODY=$(echo "$TEMPLATE" | \
+            sed "s/{{checks}}/$CHECKS_LIST/g" | \
+            sed "s/{{pr_number}}/$PR_NUMBER/g" | \
+            sed "s/{{repo}}/$REPO/g" | \
+            sed "s/{{bot_name}}/$BOT_NAME/g")
 
-              const existingComment = comments.find(comment =>
-                comment.user.login === 'github-actions[bot]' &&
-                comment.body.includes(searchText)
-              );
+          # Remove check links section if not enabled
+          if [[ "$INCLUDE_CHECK_LINKS" != "true" ]]; then
+            COMMENT_BODY=$(echo "$COMMENT_BODY" | sed '/📋 \*\*Check Results:\*\*/,/^\*Automated by/d')
+          fi
 
-              if (existingComment) {
-                shouldPost = false;
-                console.log('Duplicate comment found, skipping');
-              }
-            }
+          # Post comment using GitHub CLI
+          echo "$COMMENT_BODY" | gh issue comment $PR_NUMBER --repo $REPO --body-file - > /dev/null 2>&1
 
-            if (shouldPost) {
-              // Prepare template variables
-              const checksList = relevantChecks.map(check => {
-                const status = check.conclusion === 'success' ? '✅' : '❌';
-                return `- ${status} ${check.name}`;
-              }).join('\n');
-
-              let commentBody = template
-                .replace(/\{\{checks\}\}/g, checksList)
-                .replace(/\{\{pr_number\}\}/g, prNumber)
-                .replace(/\{\{repo\}\}/g, `${context.repo.owner}/${context.repo.repo}`)
-                .replace(/\{\{bot_name\}\}/g, botName);
-
-              // Remove check links section if not enabled
-              if (!includeCheckLinks) {
-                commentBody = commentBody.replace(/\n📋 \*\*Check Results:\*\*\n- \[View all checks\].*$/gm, '');
-              }
-
-              await octokit.rest.issues.createComment({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                issue_number: prNumber,
-                body: commentBody
-              });
-
-              console.log(`Posted ${commentType} comment on PR #${prNumber}`);
-              core.setOutput('commented', 'true');
-              core.setOutput('comment-type', commentType);
-            } else {
-              core.setOutput('commented', 'false');
-              core.setOutput('comment-type', commentType);
-            }
-
-          } catch (error) {
-            core.setFailed(error.message);
-          }
-        }
-
-        run();
-        EOF
-
-        # Run the script
-        node /tmp/comment-script.js
+          if [[ $? -eq 0 ]]; then
+            echo "Posted $COMMENT_TYPE comment on PR #$PR_NUMBER"
+            echo "commented=true" >> $GITHUB_OUTPUT
+            echo "comment-type=$COMMENT_TYPE" >> $GITHUB_OUTPUT
+          else
+            echo "Failed to post comment"
+            echo "commented=false" >> $GITHUB_OUTPUT
+            echo "comment-type=$COMMENT_TYPE" >> $GITHUB_OUTPUT
+          fi
+        else
+          echo "commented=false" >> $GITHUB_OUTPUT
+          echo "comment-type=$COMMENT_TYPE" >> $GITHUB_OUTPUT
+        fi

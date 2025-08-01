@@ -58,10 +58,7 @@ on:
         default: ''
         type: string
 
-    secrets:
-      github-token:
-        description: 'GitHub token for API access'
-        required: false
+
 
 jobs:
   comment-on-pr:
@@ -81,8 +78,6 @@ jobs:
           prevent-duplicates: ${{ inputs.prevent-duplicates }}
           include-check-links: ${{ inputs.include-check-links }}
           bot-name: ${{ inputs.bot-name }}
-        env:
-          GITHUB_TOKEN: ${{ secrets.github-token || github.token }}
 
       - name: Comment Status
         run: |

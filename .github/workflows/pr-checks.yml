@@ -45,5 +45,3 @@ jobs:
 
         *Automated by PR Status Commenter*
       bot-name: "PR Check Bot"
-    secrets:
-      github-token: ${{ secrets.GITHUB_TOKEN }}

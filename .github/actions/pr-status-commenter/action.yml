@@ -1,0 +1,224 @@
+name: "PR Status Commenter"
+description: "Automatically post comments on PRs when checks pass or fail"
+inputs:
+  required-checks:
+    description: "Comma-separated list of required checks to monitor"
+    required: false
+    default: "pre-commit,terraform-lint"
+  success-template:
+    description: "Success comment template (supports variables: {{checks}}, {{pr_number}}, {{repo}})"
+    required: false
+    default: |
+      ✅ **All PR checks passed successfully!**
+
+      🎉 Great job! All automated checks have completed successfully:
+      {{checks}}
+
+      This PR is ready for review! 🚀
+
+      📋 **Check Results:**
+      - [View all checks](https://github.com/{{repo}}/pull/{{pr_number}}/checks)
+
+      *This comment was automatically posted by the PR Status Commenter.*
+  failure-template:
+    description: "Failure comment template (supports variables: {{checks}}, {{pr_number}}, {{repo}})"
+    required: false
+    default: |
+      ❌ **Some PR checks failed**
+
+      Please review the failed checks and fix any issues before requesting a review.
+
+      📋 **Check Results:**
+      - [View all checks](https://github.com/{{repo}}/pull/{{pr_number}}/checks)
+
+      *This comment was automatically posted by the PR Status Commenter.*
+  prevent-duplicates:
+    description: "Prevent duplicate comments (true/false)"
+    required: false
+    default: "true"
+  include-check-links:
+    description: "Include links to check results (true/false)"
+    required: false
+    default: "true"
+  bot-name:
+    description: "Bot name for comment signatures"
+    required: false
+    default: "PR Status Commenter"
+  check-suite-id:
+    description: "Check suite ID to monitor (optional, will auto-detect if not provided)"
+    required: false
+    default: ""
+outputs:
+  commented:
+    description: "Whether a comment was posted (true/false)"
+    value: ${{ steps.comment.outputs.commented }}
+  comment-type:
+    description: "Type of comment posted (success/failure/none)"
+    value: ${{ steps.comment.outputs.comment-type }}
+runs:
+  using: "composite"
+  steps:
+    - name: Comment on PR Status
+      id: comment
+      shell: bash
+      run: |
+        # Set up environment
+        REQUIRED_CHECKS="${{ inputs.required-checks }}"
+        SUCCESS_TEMPLATE="${{ inputs.success-template }}"
+        FAILURE_TEMPLATE="${{ inputs.failure-template }}"
+        PREVENT_DUPLICATES="${{ inputs.prevent-duplicates }}"
+        INCLUDE_CHECK_LINKS="${{ inputs.include-check-links }}"
+        BOT_NAME="${{ inputs.bot-name }}"
+        CHECK_SUITE_ID="${{ inputs.check-suite-id }}"
+
+        # Create temporary script
+        cat > /tmp/comment-script.js << 'EOF'
+        const core = require('@actions/core');
+        const github = require('@actions/github');
+
+        async function run() {
+          try {
+            const requiredChecks = core.getInput('required-checks').split(',').map(c => c.trim());
+            const successTemplate = core.getInput('success-template');
+            const failureTemplate = core.getInput('failure-template');
+            const preventDuplicates = core.getInput('prevent-duplicates') === 'true';
+            const includeCheckLinks = core.getInput('include-check-links') === 'true';
+            const botName = core.getInput('bot-name');
+            const checkSuiteId = core.getInput('check-suite-id');
+
+            const octokit = github.getOctokit(process.env.GITHUB_TOKEN);
+            const context = github.context;
+
+            // Get check suite if not provided
+            let suiteId = checkSuiteId;
+            if (!suiteId) {
+              const { data: checkSuite } = await octokit.rest.checks.getSuite({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                check_suite_id: context.payload.check_suite?.id || context.sha
+              });
+              suiteId = checkSuite.id;
+            }
+
+            // Get PR information
+            const { data: checkSuite } = await octokit.rest.checks.getSuite({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              check_suite_id: suiteId
+            });
+
+            if (!checkSuite.pull_requests || checkSuite.pull_requests.length === 0) {
+              console.log('No PR found for this check suite');
+              core.setOutput('commented', 'false');
+              core.setOutput('comment-type', 'none');
+              return;
+            }
+
+            const pr = checkSuite.pull_requests[0];
+            const prNumber = pr.number;
+
+            // Get all check runs for this PR
+            const { data: checkRuns } = await octokit.rest.checks.listForRef({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              ref: checkSuite.head_sha
+            });
+
+            // Filter for required checks
+            const relevantChecks = checkRuns.check_runs.filter(check =>
+              requiredChecks.some(required => check.name.toLowerCase().includes(required.toLowerCase()))
+            );
+
+            // Check if all required checks are completed and successful
+            const allCompleted = relevantChecks.every(check => check.status === 'completed');
+            const allSuccessful = relevantChecks.every(check => check.conclusion === 'success');
+
+            console.log(`Required checks: ${relevantChecks.map(c => c.name).join(', ')}`);
+            console.log(`All completed: ${allCompleted}`);
+            console.log(`All successful: ${allSuccessful}`);
+
+            if (!allCompleted) {
+              console.log('Not all checks are completed yet');
+              core.setOutput('commented', 'false');
+              core.setOutput('comment-type', 'none');
+              return;
+            }
+
+            // Determine comment type and template
+            let commentType = 'none';
+            let template = '';
+            let searchText = '';
+
+            if (allSuccessful) {
+              commentType = 'success';
+              template = successTemplate;
+              searchText = '✅ All PR checks passed successfully!';
+            } else {
+              commentType = 'failure';
+              template = failureTemplate;
+              searchText = '❌ Some PR checks failed';
+            }
+
+            // Check for existing comment if prevent_duplicates is enabled
+            let shouldPost = true;
+            if (preventDuplicates) {
+              const { data: comments } = await octokit.rest.issues.listComments({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: prNumber
+              });
+
+              const existingComment = comments.find(comment =>
+                comment.user.login === 'github-actions[bot]' &&
+                comment.body.includes(searchText)
+              );
+
+              if (existingComment) {
+                shouldPost = false;
+                console.log('Duplicate comment found, skipping');
+              }
+            }
+
+            if (shouldPost) {
+              // Prepare template variables
+              const checksList = relevantChecks.map(check => {
+                const status = check.conclusion === 'success' ? '✅' : '❌';
+                return `- ${status} ${check.name}`;
+              }).join('\n');
+
+              let commentBody = template
+                .replace(/\{\{checks\}\}/g, checksList)
+                .replace(/\{\{pr_number\}\}/g, prNumber)
+                .replace(/\{\{repo\}\}/g, `${context.repo.owner}/${context.repo.repo}`)
+                .replace(/\{\{bot_name\}\}/g, botName);
+
+              // Remove check links section if not enabled
+              if (!includeCheckLinks) {
+                commentBody = commentBody.replace(/\n📋 \*\*Check Results:\*\*\n- \[View all checks\].*$/gm, '');
+              }
+
+              await octokit.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: prNumber,
+                body: commentBody
+              });
+
+              console.log(`Posted ${commentType} comment on PR #${prNumber}`);
+              core.setOutput('commented', 'true');
+              core.setOutput('comment-type', commentType);
+            } else {
+              core.setOutput('commented', 'false');
+              core.setOutput('comment-type', commentType);
+            }
+
+          } catch (error) {
+            core.setFailed(error.message);
+          }
+        }
+
+        run();
+        EOF
+
+        # Run the script
+        node /tmp/comment-script.js

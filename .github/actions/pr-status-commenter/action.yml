@@ -84,9 +84,9 @@ runs:
 
         echo "Processing PR #$PR_NUMBER"
 
-                        # Get the latest commit SHA from the PR
+                        # Get the latest commit SHA from the PR using GitHub context
         echo "Getting latest commit SHA from PR #$PR_NUMBER"
-        LATEST_SHA=$(gh api repos/$REPO/pulls/$PR_NUMBER | jq -r '.head.sha')
+        LATEST_SHA="${{ github.event.pull_request.head.sha }}"
         echo "Latest commit SHA: $LATEST_SHA"
 
         # Debug: Show what we're querying

@@ -1,4 +1,4 @@
-name: PR Checks with Status Comments
+name: PR Checks
 
 on:
   pull_request:
@@ -20,12 +20,15 @@ jobs:
     needs: [pre-commit, terraform-lint]
     uses: ./.github/workflows/reusable-pr-status-commenter.yml
     with:
-      required-checks: "pre-commit,terraform-lint"
+      required-checks: "pre-commit,terraform-lint,test-actions,test-workflows,python-ci"
       success-template: |
         🎉 **All checks passed!**
 
         ✅ **Pre-commit checks** - Code quality and formatting
         ✅ **Terraform lint** - Infrastructure code validation
+        ✅ **Test Actions** - Custom actions validation
+        ✅ **Test Workflows** - Reusable workflows validation
+        ✅ **Python CI** - Unit and integration tests
 
         This PR is ready for review! 🚀
 

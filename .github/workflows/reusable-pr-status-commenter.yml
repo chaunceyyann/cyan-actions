@@ -6,7 +6,7 @@ on:
       required-checks:
         description: 'Comma-separated list of required checks to monitor'
         required: false
-        default: 'pre-commit,terraform-lint,python-ci'
+        default: 'pre-commit,terraform-lint,test-actions,test-workflows,python-ci'
         type: string
       success-template:
         description: 'Success comment template (supports variables: {{checks}}, {{pr_number}}, {{repo}})'

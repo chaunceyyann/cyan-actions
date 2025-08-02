@@ -89,19 +89,70 @@ jobs:
   terraform-lint:
     uses: chaunceyyann/cyan-actions/.github/workflows/reusable-terraform-lint.yml@v0.1
     with:
-      terraform-version: '1.5.0'
-      terraform-files-pattern: ".*\\.tf$"
+      working-directory: '.'
+      tflint-version: 'v0.44.1'
+      aws-ruleset-version: '0.40.0'
 ```
 
 **Inputs:**
-- `terraform-version` (string): Terraform version to use (default: "1.5.0")
-- `terraform-files-pattern` (string): Regex pattern for Terraform files (default: ".*\\.tf$")
+- `working-directory` (string): Working directory containing Terraform files (default: ".")
+- `tflint-version` (string): TFLint version to use (default: "v0.44.1")
+- `aws-ruleset-version` (string): AWS ruleset version to use (default: "0.40.0")
+- `fetch-depth` (string): Git fetch depth for diff calculation (default: "0")
 
 **Features:**
 - Runs terraform fmt, validate, and plan
 - Only processes changed Terraform files
 - Configurable Terraform version
 - Detailed output and error reporting
+
+### [reusable-pr-status-commenter.yml](reusable-pr-status-commenter.yml)
+
+Automatically posts comments on pull requests when checks pass or fail, providing clear feedback to contributors.
+
+**Usage:**
+```yaml
+name: PR Status Comments
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+jobs:
+  comment-status:
+    uses: chaunceyyann/cyan-actions/.github/workflows/reusable-pr-status-commenter.yml@v0.1
+    with:
+      required-checks: "pre-commit,terraform-lint,python-ci"
+      success-template: |
+        🎉 **All checks passed!**
+
+        ✅ **Pre-commit checks** - Code quality and formatting
+        ✅ **Terraform lint** - Infrastructure code validation
+        ✅ **Python CI** - Unit and integration tests
+
+        This PR is ready for review! 🚀
+      failure-template: |
+        ❌ **Some checks failed**
+
+        Please review and fix the issues below:
+        {{checks}}
+    secrets:
+      github-token: ${{ secrets.GITHUB_TOKEN }}
+```
+
+**Inputs:**
+- `required-checks` (string): Comma-separated list of required checks to monitor (default: "pre-commit,terraform-lint,python-ci")
+- `success-template` (string): Success comment template with variables: {{checks}}, {{pr_number}}, {{repo}} (default: provided template)
+- `failure-template` (string): Failure comment template with variables: {{checks}}, {{pr_number}}, {{repo}} (default: provided template)
+- `prevent-duplicates` (string): Prevent duplicate comments (default: "true")
+- `include-check-links` (string): Include links to check results (default: "true")
+- `bot-name` (string): Bot name for comment signatures (default: "PR Status Commenter")
+
+**Features:**
+- Monitors specified checks and posts appropriate comments
+- Prevents duplicate comments by default
+- Customizable success and failure message templates
+- Supports template variables for dynamic content
+- Only runs on pull request events
+- Provides clear feedback to contributors
 
 ### [reusable-plan-only-pipeline.yml](reusable-plan-only-pipeline.yml)
 

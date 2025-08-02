@@ -221,6 +221,39 @@ Tests reusable workflows for syntax errors and configuration.
 - Tests workflow structure
 - Validates job configurations
 
+### [pr-status-commenter](pr-status-commenter/)
+
+Automatically posts comments on Pull Requests when checks pass or fail.
+
+**Usage:**
+```yaml
+- name: Comment on PR Status
+  uses: chaunceyyann/cyan-actions/.github/actions/pr-status-commenter@main
+  with:
+    required-checks: 'pre-commit,terraform-lint'
+    prevent-duplicates: 'true'
+    include-check-links: 'true'
+```
+
+**Inputs:**
+- `required-checks`: Comma-separated list of required checks to monitor
+- `success-template`: Success comment template with variable support
+- `failure-template`: Failure comment template with variable support
+- `prevent-duplicates`: Prevent duplicate comments (true/false)
+- `include-check-links`: Include links to check results (true/false)
+- `bot-name`: Bot name for comment signatures
+
+**Outputs:**
+- `commented`: Whether a comment was posted (true/false)
+- `comment-type`: Type of comment posted (success/failure/none)
+
+**Features:**
+- Monitors check runs and posts appropriate comments
+- Prevents duplicate comments to avoid spam
+- Supports customizable templates with variables
+- Includes links to check results for easy navigation
+- Configurable bot name for comment signatures
+
 ## 🧪 Testing
 
 Each action includes comprehensive tests:

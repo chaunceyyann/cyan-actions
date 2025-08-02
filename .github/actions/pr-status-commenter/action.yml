@@ -59,23 +59,27 @@ outputs:
 runs:
   using: "composite"
   steps:
-    - name: Comment on PR Status
+    - name: Install dependencies and run script
       id: comment
       shell: bash
       run: |
-        # Create temporary JavaScript file
-        cat > /tmp/comment-script.js << 'EOF'
+        # Install dependencies in the current directory
+        npm install @actions/core @actions/github
+
+        # Create the script in the current directory
+        cat > ./comment-script.js << 'EOF'
         const core = require('@actions/core');
         const github = require('@actions/github');
 
         async function run() {
           try {
-            const requiredChecks = core.getInput('required-checks').split(',').map(c => c.trim());
-            const successTemplate = core.getInput('success-template');
-            const failureTemplate = core.getInput('failure-template');
-            const preventDuplicates = core.getInput('prevent-duplicates') === 'true';
-            const includeCheckLinks = core.getInput('include-check-links') === 'true';
-            const botName = core.getInput('bot-name');
+            // Read inputs from environment variables
+            const requiredChecks = process.env.INPUT_REQUIRED_CHECKS.split(',').map(c => c.trim());
+            const successTemplate = process.env.INPUT_SUCCESS_TEMPLATE;
+            const failureTemplate = process.env.INPUT_FAILURE_TEMPLATE;
+            const preventDuplicates = process.env.INPUT_PREVENT_DUPLICATES === 'true';
+            const includeCheckLinks = process.env.INPUT_INCLUDE_CHECK_LINKS === 'true';
+            const botName = process.env.INPUT_BOT_NAME;
 
             const octokit = github.getOctokit(process.env.GITHUB_TOKEN);
             const context = github.context;
@@ -208,5 +212,13 @@ runs:
         run();
         EOF
 
-        # Run the JavaScript script
-        node /tmp/comment-script.js
+        # Run the JavaScript script from the current directory
+        node ./comment-script.js
+      env:
+        INPUT_REQUIRED_CHECKS: ${{ inputs.required-checks }}
+        INPUT_SUCCESS_TEMPLATE: ${{ inputs.success-template }}
+        INPUT_FAILURE_TEMPLATE: ${{ inputs.failure-template }}
+        INPUT_PREVENT_DUPLICATES: ${{ inputs.prevent-duplicates }}
+        INPUT_INCLUDE_CHECK_LINKS: ${{ inputs.include-check-links }}
+        INPUT_BOT_NAME: ${{ inputs.bot-name }}
+        GITHUB_TOKEN: ${{ github.token }}

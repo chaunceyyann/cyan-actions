@@ -1,4 +1,4 @@
-name: Reusable Plan-Only CodePipeline Trigger
+name: Plan-Only CodePipeline (Reusable)
 
 on:
   workflow_call:

@@ -1,4 +1,4 @@
-name: PR Checks with Status Comments
+name: PR Checks
 
 on:
   pull_request:

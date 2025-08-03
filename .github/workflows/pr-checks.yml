@@ -1,11 +1,11 @@
-name: PR Checks
+name: PR Checks with Status Comments
 
 on:
   pull_request:
     types: [opened, synchronize, reopened]
-  workflow_run:
-    workflows: ["Pre-commit Checks", "Terraform Lint", "Python CI"]
-    types: [completed]
+
+permissions:
+  pull-requests: write # Allow workflow to post comments on PRs
 
 jobs:
   # Run the actual checks

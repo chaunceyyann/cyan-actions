@@ -34,6 +34,7 @@ jobs:
 - `test-directory` (string): Directory containing tests (default: "tests")
 - `requirements-file` (string): Path to requirements.txt (default: "requirements.txt")
 - `install-command` (string): Custom install command (default: "")
+- `codebuild-runner` (string): CodeBuild runner label to use (optional)
 
 **Jobs:**
 - **lint**: Runs flake8 on changed Python files
@@ -68,6 +69,7 @@ jobs:
 **Inputs:**
 - `python-version` (string): Python version to use (default: "3.x")
 - `fetch-depth` (string): Git fetch depth for diff calculation (default: "0")
+- `codebuild-runner` (string): CodeBuild runner label to use (optional)
 
 **Features:**
 - Automatically detects changed files
@@ -99,6 +101,7 @@ jobs:
 - `tflint-version` (string): TFLint version to use (default: "v0.44.1")
 - `aws-ruleset-version` (string): AWS ruleset version to use (default: "0.40.0")
 - `fetch-depth` (string): Git fetch depth for diff calculation (default: "0")
+- `codebuild-runner` (string): CodeBuild runner label to use (optional)
 
 **Features:**
 - Runs terraform fmt, validate, and plan
@@ -108,7 +111,7 @@ jobs:
 
 ### [reusable-pr-status-commenter.yml](reusable-pr-status-commenter.yml)
 
-Automatically posts comments on pull requests when checks pass or fail, providing clear feedback to contributors.
+Automatically posts success comments on pull requests when all required checks pass.
 
 **Usage:**
 ```yaml
@@ -120,39 +123,20 @@ jobs:
   comment-status:
     uses: chaunceyyann/cyan-actions/.github/workflows/reusable-pr-status-commenter.yml@v0.1
     with:
-      required-checks: "pre-commit,terraform-lint,python-ci"
-      success-template: |
-        🎉 **All checks passed!**
-
-        ✅ **Pre-commit checks** - Code quality and formatting
-        ✅ **Terraform lint** - Infrastructure code validation
-        ✅ **Python CI** - Unit and integration tests
-
-        This PR is ready for review! 🚀
-      failure-template: |
-        ❌ **Some checks failed**
-
-        Please review and fix the issues below:
-        {{checks}}
-    secrets:
-      github-token: ${{ secrets.GITHUB_TOKEN }}
+      required-checks: "pre-commit,terraform-lint,test-actions,test-workflows,python-ci"
 ```
 
 **Inputs:**
-- `required-checks` (string): Comma-separated list of required checks to monitor (default: "pre-commit,terraform-lint,python-ci")
-- `success-template` (string): Success comment template with variables: {{checks}}, {{pr_number}}, {{repo}} (default: provided template)
-- `failure-template` (string): Failure comment template with variables: {{checks}}, {{pr_number}}, {{repo}} (default: provided template)
-- `prevent-duplicates` (string): Prevent duplicate comments (default: "true")
-- `include-check-links` (string): Include links to check results (default: "true")
-- `bot-name` (string): Bot name for comment signatures (default: "PR Status Commenter")
+- `required-checks` (string): Comma-separated list of required checks to monitor (default: "pre-commit,terraform-lint,test-actions,test-workflows,python-ci")
+- `codebuild-runner` (string): CodeBuild runner label to use (optional)
 
 **Features:**
-- Monitors specified checks and posts appropriate comments
-- Prevents duplicate comments by default
-- Customizable success and failure message templates
-- Supports template variables for dynamic content
+- Monitors specified checks and posts success comments only
+- Simple workflow name-based check matching
+- Concise 2-line comment format
+- Uses action's default success template
 - Only runs on pull request events
-- Provides clear feedback to contributors
+- Supports CodeBuild runners
 
 ### [reusable-plan-only-pipeline.yml](reusable-plan-only-pipeline.yml)
 
@@ -261,6 +245,7 @@ jobs:
 | `timeout-minutes` | string | No | `30` | Timeout in minutes for pipeline execution |
 | `patterns` | string | No | `noodle_king,secret_key,password,api_key,token` | Comma-separated patterns to check for sensitive keywords |
 | `file-patterns` | string | No | `^src/.*` and `^tests/.*` | Patterns to match changed files for account mapping |
+| `codebuild-runner` | string | No | `''` | CodeBuild runner label to use |
 
 #### 🔐 Secrets
 

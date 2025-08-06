@@ -1,0 +1,32 @@
+name: "PR Status Commenter"
+description: "Automatically post comments on PRs when checks pass or fail"
+inputs:
+  required-checks:
+    description: "Comma-separated list of required checks to monitor"
+    required: false
+    default: "pre-commit,terraform-lint"
+  success-template:
+    description: "Success comment template (supports variables: {{checks}}, {{pr_number}}, {{repo}})"
+    required: false
+    default: |
+      ✅ All checks passed! Ready for review.
+
+      {{checks}}
+
+
+runs:
+  using: "composite"
+  steps:
+    - name: Install dependencies
+      shell: bash
+      working-directory: ${{ github.action_path }}
+      run: npm install @actions/core @actions/github
+
+    - name: Run comment script
+      shell: bash
+      working-directory: ${{ github.action_path }}
+      run: node comment-script.js
+      env:
+        INPUT_REQUIRED_CHECKS: ${{ inputs.required-checks }}
+        INPUT_SUCCESS_TEMPLATE: ${{ inputs.success-template }}
+        GITHUB_TOKEN: ${{ github.token }}

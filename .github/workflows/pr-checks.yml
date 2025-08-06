@@ -2,17 +2,22 @@ name: PR Checks
 
 on:
   pull_request:
-    branches: [master, dev]
+    types: [opened, synchronize, reopened]
+
+permissions:
+  pull-requests: write # Allow workflow to post comments on PRs
 
 jobs:
+  # Run the actual checks
   pre-commit:
     uses: ./.github/workflows/reusable-pre-commit.yml
-    with:
-      python-version: '3.x'
-      fetch-depth: '0'
 
   terraform-lint:
     uses: ./.github/workflows/reusable-terraform-lint.yml
+
+  # Comment on PR status after checks complete
+  comment-status:
+    needs: [pre-commit, terraform-lint]
+    uses: ./.github/workflows/reusable-pr-status-commenter.yml
     with:
-      working-directory: '.'
-      fetch-depth: '0'
+      required-checks: "pre-commit,terraform-lint,test-actions,test-workflows,python-ci"

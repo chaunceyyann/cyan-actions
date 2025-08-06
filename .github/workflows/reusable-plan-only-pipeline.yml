@@ -1,4 +1,4 @@
-name: Reusable Plan-Only CodePipeline Trigger
+name: Plan-Only CodePipeline (Reusable)
 
 on:
   workflow_call:
@@ -82,10 +82,10 @@ jobs:
         run: |
           if [ "${{ steps.account.outputs.mapping-found }}" = "false" ]; then
             echo "No account mapping found for changed files. Skipping entire workflow."
-            echo "skip_pipeline=true" >> $GITHUB_OUTPUT
+            echo "skip_pipeline=true" >> "$GITHUB_OUTPUT"
           else
             echo "Account mapping found. Proceeding with pipeline trigger."
-            echo "skip_pipeline=false" >> $GITHUB_OUTPUT
+            echo "skip_pipeline=false" >> "$GITHUB_OUTPUT"
           fi
 
       - name: Call AWS AFT CodePipeline Action
@@ -201,25 +201,28 @@ jobs:
            | Status            | $STATUS_DISPLAY |
            | Start Time        | $FORMATTED_START_TIME |
           EOF
-                                # Add variables section if available (key:value format)
-           if [ -n "${{ steps.pipeline-status.outputs.variables }}" ]; then
-             echo "### Pipeline Variables" >> "$GITHUB_STEP_SUMMARY"
+                                # Add variables section and pipeline console link
+          {
+            # Add variables section if available (key:value format)
+            if [ -n "${{ steps.pipeline-status.outputs.variables }}" ]; then
+              echo "### Pipeline Variables"
 
-             # Convert key:value format to markdown table
-             VARIABLES_TEXT="${{ steps.pipeline-status.outputs.variables }}"
-             if echo "$VARIABLES_TEXT" | grep -q ".*:.*"; then
-               # Has key:value pairs, convert to markdown table
-               echo "| Variable Name | Value |" >> "$GITHUB_STEP_SUMMARY"
-               echo "|---------------|-------|" >> "$GITHUB_STEP_SUMMARY"
-               echo "$VARIABLES_TEXT" | sed 's/, /\n/g' | sed 's/^/| /; s/: / | /; s/$/ |/' >> "$GITHUB_STEP_SUMMARY"
-             else
-               # No key:value format, just output as text
-               echo "$VARIABLES_TEXT" >> "$GITHUB_STEP_SUMMARY"
-             fi
-           fi
+              # Convert key:value format to markdown table
+              VARIABLES_TEXT="${{ steps.pipeline-status.outputs.variables }}"
+              if echo "$VARIABLES_TEXT" | grep -q ".*:.*"; then
+                # Has key:value pairs, convert to markdown table
+                echo "| Variable Name | Value |"
+                echo "|---------------|-------|"
+                echo "$VARIABLES_TEXT" | sed 's/, /\n/g' | sed 's/^/| /; s/: / | /; s/$/ |/'
+              else
+                # No key:value format, just output as text
+                echo "$VARIABLES_TEXT"
+              fi
+            fi
 
-          # Add pipeline console link
-          echo "- **Pipeline Console**: [View in AWS Console](https://${{ env.AWS_REGION }}.console.aws.amazon.com/codesuite/codepipeline/pipelines/${{ inputs.pipeline-name }}/executions/${{ needs.trigger-codepipeline.outputs.execution-id }}/view?region=${{ env.AWS_REGION }})" >> "$GITHUB_STEP_SUMMARY"
+            # Add pipeline console link
+            echo "- **Pipeline Console**: [View in AWS Console](https://${{ env.AWS_REGION }}.console.aws.amazon.com/codesuite/codepipeline/pipelines/${{ inputs.pipeline-name }}/executions/${{ needs.trigger-codepipeline.outputs.execution-id }}/view?region=${{ env.AWS_REGION }})"
+          } >> "$GITHUB_STEP_SUMMARY"
 
 
 

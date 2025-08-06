@@ -1,0 +1,40 @@
+name: PR Status Commenter (Reusable)
+
+on:
+  workflow_call:
+    inputs:
+      required-checks:
+        description: 'Comma-separated list of required checks to monitor'
+        required: false
+        default: 'pre-commit,terraform-lint,test-actions,test-workflows,python-ci'
+        type: string
+
+      codebuild-runner:
+        description: 'CodeBuild runner label to use'
+        required: false
+        default: ''
+        type: string
+
+
+
+jobs:
+  comment-on-pr:
+    runs-on: ${{ inputs.codebuild-runner != '' && format('codebuild-{0}-{1}-{2}', inputs.codebuild-runner, github.run_id, github.run_attempt) || 'ubuntu-latest' }}
+    if: github.event_name == 'pull_request'
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Comment on PR Status
+        id: comment
+        uses: chaunceyyann/cyan-actions/.github/actions/pr-status-commenter@v0.1
+        with:
+          required-checks: ${{ inputs.required-checks }}
+
+      - name: Comment Status
+        run: |
+          if [[ "${{ steps.comment.outputs.commented }}" == "true" ]]; then
+            echo "✅ Posted ${{ steps.comment.outputs.comment-type }} comment on PR"
+          else
+            echo "ℹ️ No comment posted (type: ${{ steps.comment.outputs.comment-type }})"
+          fi

@@ -53,7 +53,7 @@ jobs:
 
       - name: Find changed Python files
         id: find-changed-python
-        uses: ./.github/actions/changed-files
+        uses: chaunceyyann/cyan-actions/.github/actions/changed-files@dev
         with:
           pattern: ${{ inputs.python-files-pattern }}
 
@@ -89,7 +89,7 @@ jobs:
 
       - name: Find changed Python files
         id: find-changed-python
-        uses: ./.github/actions/changed-files
+        uses: chaunceyyann/cyan-actions/.github/actions/changed-files@dev
         with:
           pattern: ${{ inputs.python-files-pattern }}
 
@@ -134,7 +134,7 @@ jobs:
 
       - name: Find changed Python files
         id: find-changed-python
-        uses: ./.github/actions/changed-files
+        uses: chaunceyyann/cyan-actions/.github/actions/changed-files@dev
         with:
           pattern: ${{ inputs.python-files-pattern }}
 

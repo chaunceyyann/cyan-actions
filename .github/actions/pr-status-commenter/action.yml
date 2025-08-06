@@ -9,17 +9,9 @@ inputs:
     description: "Success comment template (supports variables: {{checks}}, {{pr_number}}, {{repo}})"
     required: false
     default: |
-      ✅ All PR checks passed successfully!
+      ✅ All checks passed! Ready for review.
 
-      🎉 Great job! All automated checks have completed successfully:
       {{checks}}
-
-      This PR is ready for review! 🚀
-
-      📋 **Check Results:**
-      - [View all checks](https://github.com/{{repo}}/pull/{{pr_number}}/checks)
-
-      *Automated by PR Status Commenter*
 
 
 runs:

@@ -27,11 +27,13 @@ runs:
   steps:
     - name: Install dependencies
       shell: bash
+      working-directory: ${{ github.action_path }}
       run: npm install @actions/core @actions/github
 
     - name: Run comment script
       shell: bash
-      run: node "$GITHUB_ACTION_PATH/comment-script.js"
+      working-directory: ${{ github.action_path }}
+      run: node comment-script.js
       env:
         INPUT_REQUIRED_CHECKS: ${{ inputs.required-checks }}
         INPUT_SUCCESS_TEMPLATE: ${{ inputs.success-template }}

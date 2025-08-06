@@ -21,30 +21,3 @@ jobs:
     uses: ./.github/workflows/reusable-pr-status-commenter.yml
     with:
       required-checks: "pre-commit,terraform-lint,test-actions,test-workflows,python-ci"
-      success-template: |
-        🎉 **All checks passed!**
-
-        ✅ **Pre-commit checks** - Code quality and formatting
-        ✅ **Terraform lint** - Infrastructure code validation
-        ✅ **Test Actions** - Custom actions validation
-        ✅ **Test Workflows** - Reusable workflows validation
-        ✅ **Python CI** - Unit and integration tests
-
-        This PR is ready for review! 🚀
-
-        📋 **Check Results:**
-        - [View all checks](https://github.com/{{repo}}/pull/{{pr_number}}/checks)
-
-        *Automated by PR Status Commenter*
-      failure-template: |
-        ❌ **Some checks failed**
-
-        Please review and fix the issues below before requesting a review:
-
-        {{checks}}
-
-        📋 **Check Results:**
-        - [View all checks](https://github.com/{{repo}}/pull/{{pr_number}}/checks)
-
-        *Automated by PR Status Commenter*
-      bot-name: "PR Check Bot"

@@ -9,7 +9,7 @@ inputs:
     description: "Success comment template (supports variables: {{checks}}, {{pr_number}}, {{repo}})"
     required: false
     default: |
-      ✅ **All PR checks passed successfully!**
+      ✅ All PR checks passed successfully!
 
       🎉 Great job! All automated checks have completed successfully:
       {{checks}}
@@ -19,206 +19,20 @@ inputs:
       📋 **Check Results:**
       - [View all checks](https://github.com/{{repo}}/pull/{{pr_number}}/checks)
 
-      *This comment was automatically posted by the PR Status Commenter.*
-  failure-template:
-    description: "Failure comment template (supports variables: {{checks}}, {{pr_number}}, {{repo}})"
-    required: false
-    default: |
-      ❌ **Some PR checks failed**
+      *Automated by PR Status Commenter*
 
-      Please review the failed checks and fix any issues before requesting a review.
 
-      📋 **Check Results:**
-      - [View all checks](https://github.com/{{repo}}/pull/{{pr_number}}/checks)
-
-      *This comment was automatically posted by the PR Status Commenter.*
-  prevent-duplicates:
-    description: "Prevent duplicate comments (true/false)"
-    required: false
-    default: "true"
-  include-check-links:
-    description: "Include links to check results (true/false)"
-    required: false
-    default: "true"
-  bot-name:
-    description: "Bot name for comment signatures"
-    required: false
-    default: "PR Status Commenter"
-  check-suite-id:
-    description: "Check suite ID to monitor (optional, will auto-detect if not provided)"
-    required: false
-    default: ""
-
-outputs:
-  commented:
-    description: "Whether a comment was posted (true/false)"
-    value: ${{ steps.comment.outputs.commented }}
-  comment-type:
-    description: "Type of comment posted (success/failure/none)"
-    value: ${{ steps.comment.outputs.comment-type }}
 runs:
   using: "composite"
   steps:
-    - name: Install dependencies and run script
-      id: comment
+    - name: Install dependencies
       shell: bash
-      run: |
-        # Install dependencies in the current directory
-        npm install @actions/core @actions/github
+      run: npm install @actions/core @actions/github
 
-        # Create the script in the current directory
-        cat > ./comment-script.js << 'EOF'
-        const core = require('@actions/core');
-        const github = require('@actions/github');
-
-        async function run() {
-          try {
-            // Read inputs from environment variables
-            const requiredChecks = process.env.INPUT_REQUIRED_CHECKS.split(',').map(c => c.trim());
-            const successTemplate = process.env.INPUT_SUCCESS_TEMPLATE;
-            const failureTemplate = process.env.INPUT_FAILURE_TEMPLATE;
-            const preventDuplicates = process.env.INPUT_PREVENT_DUPLICATES === 'true';
-            const includeCheckLinks = process.env.INPUT_INCLUDE_CHECK_LINKS === 'true';
-            const botName = process.env.INPUT_BOT_NAME;
-
-            const octokit = github.getOctokit(process.env.GITHUB_TOKEN);
-            const context = github.context;
-
-            // Get PR information
-            const prNumber = context.payload.pull_request?.number;
-            if (!prNumber) {
-              console.log('No PR number found, skipping comment');
-              core.setOutput('commented', 'false');
-              core.setOutput('comment-type', 'none');
-              return;
-            }
-
-            console.log(`Processing PR #${prNumber}`);
-
-            // Get check runs for the latest commit
-            const latestSha = context.payload.pull_request.head.sha;
-            console.log(`Latest commit SHA: ${latestSha}`);
-
-            const { data: checkRuns } = await octokit.rest.checks.listForRef({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              ref: latestSha
-            });
-
-            console.log('Available check runs:');
-            checkRuns.check_runs.forEach(check => {
-              console.log(`  - ${check.name} (status: ${check.status}, conclusion: ${check.conclusion || 'null'})`);
-            });
-
-            // Filter for required checks
-            const relevantChecks = checkRuns.check_runs.filter(check =>
-              requiredChecks.some(required =>
-                check.name.includes(`/${required}/`) ||
-                check.name.endsWith(`/${required}`) ||
-                check.name.toLowerCase().includes(required.toLowerCase())
-              )
-            );
-
-            console.log(`Relevant checks found: ${relevantChecks.map(c => c.name).join(', ')}`);
-
-            // Check if all required checks are completed and successful
-            const allCompleted = relevantChecks.every(check => check.status === 'completed');
-            const allSuccessful = relevantChecks.every(check => check.conclusion === 'success');
-
-            console.log(`All completed: ${allCompleted}`);
-            console.log(`All successful: ${allSuccessful}`);
-
-            if (!allCompleted) {
-              console.log('Not all checks are completed yet');
-              core.setOutput('commented', 'false');
-              core.setOutput('comment-type', 'none');
-              return;
-            }
-
-            // Determine comment type and template
-            let commentType = 'none';
-            let template = '';
-            let searchText = '';
-
-            if (allSuccessful) {
-              commentType = 'success';
-              template = successTemplate;
-              searchText = '✅ All PR checks passed successfully!';
-            } else {
-              commentType = 'failure';
-              template = failureTemplate;
-              searchText = '❌ Some PR checks failed';
-            }
-
-            // Check for existing comment if prevent_duplicates is enabled
-            let shouldPost = true;
-            if (preventDuplicates) {
-              const { data: comments } = await octokit.rest.issues.listComments({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                issue_number: prNumber
-              });
-
-              const existingComment = comments.find(comment =>
-                comment.user.login === 'github-actions[bot]' &&
-                comment.body.includes(searchText)
-              );
-
-              if (existingComment) {
-                shouldPost = false;
-                console.log('Duplicate comment found, skipping');
-              }
-            }
-
-            if (shouldPost) {
-              // Prepare template variables
-              const checksList = relevantChecks.map(check => {
-                const status = check.conclusion === 'success' ? '✅' : '❌';
-                return `- ${status} ${check.name}`;
-              }).join('\n');
-
-              let commentBody = template
-                .replace(/\{\{checks\}\}/g, checksList)
-                .replace(/\{\{pr_number\}\}/g, prNumber)
-                .replace(/\{\{repo\}\}/g, `${context.repo.owner}/${context.repo.repo}`)
-                .replace(/\{\{bot_name\}\}/g, botName);
-
-              // Remove check links section if not enabled
-              if (!includeCheckLinks) {
-                commentBody = commentBody.replace(/\n📋 \*\*Check Results:\*\*\n- \[View all checks\].*$/gm, '');
-              }
-
-              await octokit.rest.issues.createComment({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                issue_number: prNumber,
-                body: commentBody
-              });
-
-              console.log(`Posted ${commentType} comment on PR #${prNumber}`);
-              core.setOutput('commented', 'true');
-              core.setOutput('comment-type', commentType);
-            } else {
-              core.setOutput('commented', 'false');
-              core.setOutput('comment-type', commentType);
-            }
-
-          } catch (error) {
-            console.error('Error:', error.message);
-            core.setFailed(error.message);
-          }
-        }
-
-        run();
-        EOF
-
-        # Run the JavaScript script from the current directory
-        node ./comment-script.js
+    - name: Run comment script
+      shell: bash
+      run: node "$GITHUB_ACTION_PATH/comment-script.js"
       env:
         INPUT_REQUIRED_CHECKS: ${{ inputs.required-checks }}
         INPUT_SUCCESS_TEMPLATE: ${{ inputs.success-template }}
-        INPUT_FAILURE_TEMPLATE: ${{ inputs.failure-template }}
-        INPUT_PREVENT_DUPLICATES: ${{ inputs.prevent-duplicates }}
-        INPUT_INCLUDE_CHECK_LINKS: ${{ inputs.include-check-links }}
-        INPUT_BOT_NAME: ${{ inputs.bot-name }}
         GITHUB_TOKEN: ${{ github.token }}

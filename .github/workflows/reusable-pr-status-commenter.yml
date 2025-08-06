@@ -8,50 +8,7 @@ on:
         required: false
         default: 'pre-commit,terraform-lint,test-actions,test-workflows,python-ci'
         type: string
-      success-template:
-        description: 'Success comment template (supports variables: {{checks}}, {{pr_number}}, {{repo}})'
-        required: false
-        default: |
-          ✅ **All PR checks passed successfully!**
 
-          🎉 Great job! All automated checks have completed successfully:
-          {{checks}}
-
-          This PR is ready for review! 🚀
-
-          📋 **Check Results:**
-          - [View all checks](https://github.com/{{repo}}/pull/{{pr_number}}/checks)
-
-          *This comment was automatically posted by the PR Status Commenter.*
-        type: string
-      failure-template:
-        description: 'Failure comment template (supports variables: {{checks}}, {{pr_number}}, {{repo}})'
-        required: false
-        default: |
-          ❌ **Some PR checks failed**
-
-          Please review the failed checks and fix any issues before requesting a review.
-
-          📋 **Check Results:**
-          - [View all checks](https://github.com/{{repo}}/pull/{{pr_number}}/checks)
-
-          *This comment was automatically posted by the PR Status Commenter.*
-        type: string
-      prevent-duplicates:
-        description: 'Prevent duplicate comments (true/false)'
-        required: false
-        default: 'true'
-        type: string
-      include-check-links:
-        description: 'Include links to check results (true/false)'
-        required: false
-        default: 'true'
-        type: string
-      bot-name:
-        description: 'Bot name for comment signatures'
-        required: false
-        default: 'PR Status Commenter'
-        type: string
       codebuild-runner:
         description: 'CodeBuild runner label to use'
         required: false
@@ -70,14 +27,9 @@ jobs:
 
       - name: Comment on PR Status
         id: comment
-        uses: ./.github/actions/pr-status-commenter
+        uses: chaunceyyann/cyan-actions/.github/actions/pr-status-commenter@v0.1
         with:
           required-checks: ${{ inputs.required-checks }}
-          success-template: ${{ inputs.success-template }}
-          failure-template: ${{ inputs.failure-template }}
-          prevent-duplicates: ${{ inputs.prevent-duplicates }}
-          include-check-links: ${{ inputs.include-check-links }}
-          bot-name: ${{ inputs.bot-name }}
 
       - name: Comment Status
         run: |

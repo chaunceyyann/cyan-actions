@@ -112,7 +112,7 @@ jobs:
 
       - name: Check for sensitive keywords
         id: keyword-check
-        uses: chaunceyyann/cyan-actions/.github/actions/check-keywords@v0.1
+        uses: chaunceyyann/cyan-actions/.github/actions/check-keywords@dev
         with:
           patterns: ${{ inputs.patterns }}
           base-ref: "origin/${{ github.base_ref }}"
@@ -194,14 +194,33 @@ jobs:
            | Timestamp         | $FORMATTED_COMMIT_TIME |
 
                      ### Code Quality Check
+           | Patterns Checked   | ${{ inputs.patterns }} |
            | Sensitive Keywords | ${{ steps.keyword-check.outputs.found }} |
 
+          EOF
+
+          # Add keyword findings section if patterns were found
+          if [ "${{ steps.keyword-check.outputs.found }}" = "true" ]; then
+            echo "### 🔍 Sensitive Keywords Found" >> "$GITHUB_STEP_SUMMARY"
+            echo "" >> "$GITHUB_STEP_SUMMARY"
+
+            # Parse the found_lines JSON and display in a readable format
+            FOUND_LINES='${{ steps.keyword-check.outputs.found_lines }}'
+
+            if [ -n "$FOUND_LINES" ] && [ "$FOUND_LINES" != "{}" ]; then
+              echo "$FOUND_LINES" | jq -r 'to_entries[] | "**\(.key):**\n```\n\(.value[])\n```\n"' >> "$GITHUB_STEP_SUMMARY"
+            fi
+          fi
+
+          # Continue with the rest of the summary
+          cat << EOF >> "$GITHUB_STEP_SUMMARY"
                      ### Pipeline Status
            | Execution ID      | ${{ needs.trigger-codepipeline.outputs.execution-id }} |
            | Status            | $STATUS_DISPLAY |
            | Start Time        | $FORMATTED_START_TIME |
           EOF
-                                # Add variables section and pipeline console link
+
+          # Add variables section and pipeline console link
           {
             # Add variables section if available (JSON format)
             if [ -n "${{ steps.pipeline-status.outputs.variables }}" ]; then
@@ -209,15 +228,11 @@ jobs:
 
               # Parse JSON and convert to markdown table
               VARIABLES_JSON="${{ steps.pipeline-status.outputs.variables }}"
-              if echo "$VARIABLES_JSON" | jq -e . >/dev/null 2>&1; then
-                # Valid JSON, convert to markdown table
-                echo "| Variable Name | Value |"
-                echo "|---------------|-------|"
-                echo "$VARIABLES_JSON" | jq -r 'to_entries[] | "| \(.key) | \(.value) |"'
-              else
-                # Not valid JSON, output as text
-                echo "$VARIABLES_JSON"
-              fi
+
+              # Convert JSON to markdown table
+              echo "| Variable Name | Value |"
+              echo "|---------------|-------|"
+              echo "$VARIABLES_JSON" | jq -r 'to_entries[] | "| \(.key) | \(.value) |"'
             fi
 
             # Add pipeline console link
@@ -252,7 +267,8 @@ jobs:
               },
               "quality_check": {
                 "sensitive_keywords_found": "${{ steps.keyword-check.outputs.found }}",
-                "patterns_checked": "${{ inputs.patterns }}"
+                "patterns_checked": "${{ inputs.patterns }}",
+                "found_lines": ${{ steps.keyword-check.outputs.found_lines }}
               },
               "pipeline_status": {
                 "execution_id": "${{ needs.trigger-codepipeline.outputs.execution-id }}",

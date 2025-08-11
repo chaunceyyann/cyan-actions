@@ -31,6 +31,10 @@ async function run() {
     const checksList = workflowNames.join(' ✅ ');
     const commentBody = successTemplate.replace(/\{\{checks\}\}/g, checksList + ' ✅');
 
+    // Remove all previous comments from this action
+    await removePreviousComments(octokit, context, prNumber, successTemplate);
+
+    // Create new comment
     await octokit.rest.issues.createComment({
       owner: context.repo.owner,
       repo: context.repo.repo,
@@ -40,6 +44,42 @@ async function run() {
 
   } catch (error) {
     core.setFailed(error.message);
+  }
+}
+
+async function removePreviousComments(octokit, context, prNumber, successTemplate) {
+  try {
+    // Get all comments on the PR
+    const { data: comments } = await octokit.rest.issues.listComments({
+      owner: context.repo.owner,
+      repo: context.repo.repo,
+      issue_number: prNumber
+    });
+
+    // Find comments that match our template pattern
+    const commentsToDelete = comments.filter(comment => {
+      // Check if comment contains the template pattern (without the checks part)
+      const templateWithoutChecks = successTemplate.replace(/\{\{checks\}\}/g, '');
+      return comment.body.includes(templateWithoutChecks) &&
+             comment.user.type === 'Bot' &&
+             comment.user.login.includes('github-actions');
+    });
+
+    // Delete all matching comments
+    for (const comment of commentsToDelete) {
+      await octokit.rest.issues.deleteComment({
+        owner: context.repo.owner,
+        repo: context.repo.repo,
+        comment_id: comment.id
+      });
+    }
+
+    if (commentsToDelete.length > 0) {
+      console.log(`Removed ${commentsToDelete.length} previous comment(s)`);
+    }
+  } catch (error) {
+    console.warn('Failed to remove previous comments:', error.message);
+    // Don't fail the action if comment removal fails
   }
 }
 

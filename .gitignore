@@ -61,3 +61,7 @@ temp/
 __pycache__/
 *.py[cod]
 *$py.class
+
+# Test files
+test*.pdf
+test*.html

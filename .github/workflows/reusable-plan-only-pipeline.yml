@@ -228,11 +228,15 @@ jobs:
 
               # Parse JSON and convert to markdown table
               VARIABLES_JSON="${{ steps.pipeline-status.outputs.variables }}"
-
-              # Convert JSON to markdown table
-              echo "| Variable Name | Value |"
-              echo "|---------------|-------|"
-              echo "$VARIABLES_JSON" | jq -r 'to_entries[] | "| \(.key) | \(.value) |"'
+              if echo "$VARIABLES_JSON" | jq -e . >/dev/null 2>&1; then
+                # Valid JSON, convert to markdown table
+                echo "| Variable Name | Value |"
+                echo "|---------------|-------|"
+                echo "$VARIABLES_JSON" | jq -r 'to_entries[] | "| \(.key) | \(.value) |"'
+              else
+                # Not valid JSON, output as text
+                echo "$VARIABLES_JSON"
+              fi
             fi
 
             # Add pipeline console link
@@ -270,6 +274,7 @@ jobs:
                 "patterns_checked": "${{ inputs.patterns }}",
                 "found_lines": ${{ steps.keyword-check.outputs.found_lines }}
               },
+              ${{ steps.keyword-check.outputs.found_lines }},
               "pipeline_status": {
                 "execution_id": "${{ needs.trigger-codepipeline.outputs.execution-id }}",
                 "status": "${{ steps.pipeline-status.outputs.status }}",

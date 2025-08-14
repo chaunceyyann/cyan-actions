@@ -52,10 +52,18 @@ runs:
       id: codepipeline
       run: |
         echo "Starting CodePipeline 'aft-customization-plan-only' for account ${{ inputs.aws-target-account }} with commit SHA ${{ inputs.commit-sha }}"
+
+        # Build variables array with hard-coded values
+        variables=(
+          "name=VENDED_ACCOUNT_ID,value=${{ inputs.aws-target-account }}"
+          "name=ENVIRONMENT,value=staging"
+          "name=VERSION,value=1.0.0"
+        )
+
         RESPONSE=$(aws codepipeline start-pipeline-execution \
           --name aft-customization-plan-only \
           --source-revisions "actionName=Source,revisionType=COMMIT_ID,revisionValue=${{ inputs.commit-sha }}" \
-          --variables "name=VENDED_ACCOUNT_ID,value=${{ inputs.aws-target-account }}" \
+          --variables "${variables[@]}" \
           --region ${{ inputs.aws-region }})
 
         EXECUTION_ID=$(echo "$RESPONSE" | jq -r '.pipelineExecutionId')

@@ -1,0 +1,78 @@
+name: Publish Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Create Release
+        id: create_release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ github.ref }}
+          release_name: Release ${{ github.ref }}
+          draft: false
+          prerelease: false
+
+      - name: Publish to GitHub Packages
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ./
+          asset_name: cyan-actions-${{ github.ref_name }}.zip
+          asset_content_type: application/zip
+
+      - name: Create Package Manifest
+        run: |
+          cat > package-manifest.json << EOF
+          {
+            "name": "cyan-actions",
+            "version": "${{ github.ref_name }}",
+            "description": "Collection of reusable GitHub Actions and Workflows",
+            "author": "chaunceyyann",
+            "repository": "chaunceyyann/cyan-actions",
+            "license": "MIT",
+            "actions": [
+              "changed-files",
+              "account-mapping",
+              "check-keywords",
+              "check-codepipeline",
+              "generate-report",
+              "run-codepipeline",
+              "test-actions",
+              "test-workflows",
+              "pr-status-commenter"
+            ],
+            "workflows": [
+              "reusable-python-ci",
+              "reusable-pre-commit",
+              "reusable-terraform-lint",
+              "reusable-pr-status-commenter",
+              "reusable-plan-only-pipeline"
+            ]
+          }
+          EOF
+
+      - name: Upload Package Manifest
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: package-manifest.json
+          asset_name: package-manifest.json
+          asset_content_type: application/json

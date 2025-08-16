@@ -37,7 +37,7 @@ jobs:
 - `codebuild-runner` (string): CodeBuild runner label to use (optional)
 
 **Jobs:**
-- **lint**: Runs flake8 on changed Python files
+- **lint**: Runs black formatting on changed Python files
 - **unit-test**: Runs unit tests with pytest
 - **integration-test**: Runs integration tests (conditional)
 

@@ -101,7 +101,7 @@ def main():
         print(f"Error: Unknown environment '{environment}'", file=sys.stderr)
         sys.exit(1)
 
-    account_numbers = []
+    account_numbers = set()
     for account_type in account_types:
         if account_type not in account_mappings[environment]:
             print(
@@ -110,7 +110,7 @@ def main():
                 file=sys.stderr,
             )
             sys.exit(1)
-        account_numbers.append(account_mappings[environment][account_type])
+        account_numbers.add(account_mappings[environment][account_type])
 
     # Join multiple account numbers with comma (or choose one based on priority)
     account_number = ",".join(account_numbers)

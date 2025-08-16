@@ -1,0 +1,7 @@
+# Runtime dependencies for generate-report action
+
+# JSON to PDF conversion
+reportlab>=4.0.0
+
+# Markdown to HTML conversion
+grip>=4.6.0

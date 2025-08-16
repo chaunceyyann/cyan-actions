@@ -24,6 +24,9 @@ outputs:
   found:
     description: 'Whether any patterns were found in additions'
     value: ${{ steps.check.outputs.found }}
+  found_lines:
+    description: 'JSON string of found lines with pattern and line content'
+    value: ${{ steps.check.outputs.found_lines }}
 
 runs:
   using: "composite"
@@ -39,35 +42,71 @@ runs:
         echo "Checking git diff additions for patterns: $PATTERNS"
         echo "Comparing HEAD against $BASE_REF"
 
-        # Build grep options
-        GREP_OPTS=""
-        if [ "$CASE_SENSITIVE" = "false" ]; then
-          GREP_OPTS="-i"
+        # Ensure we have the latest refs and the base ref exists
+        git fetch --depth=1 origin
+        if ! git rev-parse --verify "$BASE_REF" >/dev/null 2>&1; then
+          echo "Error: Base reference '$BASE_REF' not found"
+          exit 1
         fi
 
-        # Get git diff additions and check for patterns
-        FOUND=false
+        # Build grep options
+        GREP_OPTS=""
+        [ "$CASE_SENSITIVE" = "false" ] && GREP_OPTS="-i"
 
         # Convert comma-separated patterns to array
         IFS=',' read -ra PATTERN_ARRAY <<< "$PATTERNS"
 
-        for pattern in "${PATTERN_ARRAY[@]}"; do
-          if [ -n "$pattern" ]; then
-            echo "Checking for pattern: $pattern"
+        # Get git diff additions and check for patterns
+        FOUND=false
+        declare -A PATTERN_LINES
 
-            # Get git diff additions and search for pattern
-            if git diff "$BASE_REF" HEAD | grep "^+" | grep $GREP_OPTS "$pattern" > /dev/null; then
-              echo "Found pattern '$pattern' in additions"
-              FOUND=true
-              break
-            fi
-          fi
+        # Initialize pattern arrays
+        for pattern in "${PATTERN_ARRAY[@]}"; do
+          [ -n "$pattern" ] && PATTERN_LINES["$pattern"]=""
         done
 
+        # Get all additions from git diff and check each line
+        while IFS= read -r line; do
+          # Skip empty lines and non-addition lines
+          [ -z "$line" ] || [[ ! "$line" =~ ^\+ ]] && continue
+
+          # Remove the "+" prefix and escape quotes for JSON
+          CLEAN_LINE=$(echo "$line" | sed 's/^+//' | sed 's/"/\\"/g')
+
+          # Check this line against all patterns
+          for pattern in "${PATTERN_ARRAY[@]}"; do
+            [ -z "$pattern" ] && continue
+
+            if echo "$line" | grep $GREP_OPTS "$pattern" >/dev/null; then
+              # Add line to this pattern's array
+              if [ -n "${PATTERN_LINES[$pattern]}" ]; then
+                PATTERN_LINES["$pattern"]="${PATTERN_LINES[$pattern]},"
+              fi
+              PATTERN_LINES["$pattern"]="${PATTERN_LINES[$pattern]}\"$CLEAN_LINE\""
+              FOUND=true
+            fi
+          done
+        done < <(git diff "$BASE_REF" HEAD | grep "^+" || true)
+
+        # Build JSON output
+        FOUND_LINES="{"
+        FIRST=true
+        for pattern in "${PATTERN_ARRAY[@]}"; do
+          if [ -n "$pattern" ] && [ -n "${PATTERN_LINES[$pattern]}" ]; then
+            [ "$FIRST" = "false" ] && FOUND_LINES="$FOUND_LINES,"
+            FOUND_LINES="$FOUND_LINES\"$pattern\":[${PATTERN_LINES[$pattern]}]"
+            FIRST=false
+          fi
+        done
+        FOUND_LINES="$FOUND_LINES}"
+
+        # Set outputs
         if [ "$FOUND" = "true" ]; then
           echo "Patterns found in code additions"
           echo "found=true" >> $GITHUB_OUTPUT
+          echo "found_lines=$FOUND_LINES" >> $GITHUB_OUTPUT
         else
           echo "No patterns found in code additions"
           echo "found=false" >> $GITHUB_OUTPUT
+          echo "found_lines={}" >> $GITHUB_OUTPUT
         fi

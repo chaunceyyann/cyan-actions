@@ -1,0 +1,73 @@
+name: Generate Report
+
+description: |
+  Generates professional reports from JSON or Markdown data.
+  - JSON input → PDF output (using ReportLab)
+  - Markdown input → HTML output (using Grip for GitHub-style rendering)
+
+inputs:
+  data:
+    description: 'Data string (JSON or Markdown format)'
+    required: true
+    type: string
+  data-type:
+    description: 'Type of input data (json or markdown)'
+    required: false
+    default: 'json'
+    type: string
+  output-filename:
+    description: 'Output filename (without extension)'
+    required: false
+    default: 'report'
+    type: string
+
+outputs:
+  report-path:
+    description: 'Path to the generated report file (PDF or HTML)'
+    value: ${{ steps.generate.outputs.report-path }}
+
+runs:
+  using: "composite"
+  steps:
+    - name: Install dependencies
+      shell: bash
+      run: |
+        python -m venv venv
+        source venv/bin/activate
+
+        # Install dependencies based on data type
+        if [ "${{ inputs.data-type }}" = "json" ]; then
+          echo "Installing ReportLab for JSON to PDF processing..."
+          pip install reportlab
+        elif [ "${{ inputs.data-type }}" = "markdown" ]; then
+          echo "Installing Grip for Markdown to HTML processing..."
+          pip install grip
+        else
+          echo "Error: Unsupported data type '${{ inputs.data-type }}'. Installing both dependencies."
+          pip install reportlab grip
+        fi
+
+    - name: Generate Report
+      id: generate
+      shell: bash
+      run: |
+        # Activate virtual environment
+        source venv/bin/activate
+
+        # Set environment variables
+        export REPORT_DATA='${{ inputs.data }}'
+        export DATA_TYPE="${{ inputs.data-type }}"
+        export OUTPUT_FILENAME="${{ inputs.output-filename }}"
+
+        # Run the unified report generator script
+        python "$GITHUB_ACTION_PATH/scripts/generate_report.py"
+
+        # Set output based on data type
+        if [ "${{ inputs.data-type }}" = "json" ]; then
+          echo "report-path=${{ inputs.output-filename }}.pdf" >> $GITHUB_OUTPUT
+        elif [ "${{ inputs.data-type }}" = "markdown" ]; then
+          echo "report-path=${{ inputs.output-filename }}.html" >> $GITHUB_OUTPUT
+        else
+          echo "Error: Unsupported data type '${{ inputs.data-type }}'. Supported types: json, markdown"
+          exit 1
+        fi

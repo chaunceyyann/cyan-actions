@@ -33,10 +33,15 @@ on:
         required: false
         default: ""
         type: string
+      codebuild-runner:
+        description: 'CodeBuild runner label to use'
+        required: false
+        default: ''
+        type: string
 
 jobs:
   lint:
-    runs-on: ubuntu-latest
+    runs-on: ${{ inputs.codebuild-runner != '' && format('codebuild-{0}-{1}-{2}', inputs.codebuild-runner, github.run_id, github.run_attempt) || 'ubuntu-latest' }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -48,31 +53,14 @@ jobs:
 
       - name: Find changed Python files
         id: find-changed-python
-        uses: ./.github/actions/changed-files
+        uses: chaunceyyann/cyan-actions/.github/actions/changed-files@dev
         with:
           pattern: ${{ inputs.python-files-pattern }}
 
-      - name: Install lint dependencies
-        run: |
-          pip install flake8
 
-      - name: Run flake8 on changed files
-        run: |
-          # Lint only changed Python files
-          if [[ -n "${{ steps.find-changed-python.outputs.files }}" ]]; then
-            echo "Linting changed Python files: ${{ steps.find-changed-python.outputs.files }}"
-            for file in ${{ steps.find-changed-python.outputs.files }}; do
-              if [[ -f "$file" ]]; then
-                echo "Linting $file"
-                flake8 "$file" --max-line-length=88 --extend-ignore=E203,W503
-              fi
-            done
-          else
-            echo "No Python files changed"
-          fi
 
   unit-test:
-    runs-on: ubuntu-latest
+    runs-on: ${{ inputs.codebuild-runner != '' && format('codebuild-{0}-{1}-{2}', inputs.codebuild-runner, github.run_id, github.run_attempt) || 'ubuntu-latest' }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -84,7 +72,7 @@ jobs:
 
       - name: Find changed Python files
         id: find-changed-python
-        uses: ./.github/actions/changed-files
+        uses: chaunceyyann/cyan-actions/.github/actions/changed-files@dev
         with:
           pattern: ${{ inputs.python-files-pattern }}
 
@@ -117,7 +105,7 @@ jobs:
 
   integration-test:
     if: ${{ inputs.run-integration-tests }}
-    runs-on: ubuntu-latest
+    runs-on: ${{ inputs.codebuild-runner != '' && format('codebuild-{0}-{1}-{2}', inputs.codebuild-runner, github.run_id, github.run_attempt) || 'ubuntu-latest' }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -129,7 +117,7 @@ jobs:
 
       - name: Find changed Python files
         id: find-changed-python
-        uses: ./.github/actions/changed-files
+        uses: chaunceyyann/cyan-actions/.github/actions/changed-files@dev
         with:
           pattern: ${{ inputs.python-files-pattern }}
 

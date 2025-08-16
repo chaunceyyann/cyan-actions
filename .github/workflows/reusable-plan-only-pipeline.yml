@@ -1,0 +1,298 @@
+name: Plan-Only CodePipeline (Reusable)
+
+on:
+  workflow_call:
+    inputs:
+      aws-region:
+        description: 'AWS region for the pipeline'
+        required: false
+        default: 'us-west-2'
+        type: string
+      pipeline-name:
+        description: 'Name of the CodePipeline to trigger'
+        required: false
+        default: 'aft-customization-plan-only'
+        type: string
+      timeout-minutes:
+        description: 'Timeout in minutes for pipeline execution'
+        required: false
+        default: '30'
+        type: string
+      patterns:
+        description: 'Comma-separated patterns to check for sensitive keywords'
+        required: false
+        default: 'noodle_king,secret_key,password,api_key,token'
+        type: string
+      file-patterns:
+        description: 'Patterns to match changed files for account mapping'
+        required: false
+        default: |
+          ^src/.*
+          ^tests/.*
+        type: string
+      codebuild-runner:
+        description: 'CodeBuild runner label to use'
+        required: false
+        default: ''
+        type: string
+    secrets:
+      aws-access-key-id:
+        required: true
+      aws-secret-access-key:
+        required: true
+
+jobs:
+  trigger-codepipeline:
+    runs-on: ${{ inputs.codebuild-runner != '' && format('codebuild-{0}-{1}-{2}', inputs.codebuild-runner, github.run_id, github.run_attempt) || 'ubuntu-latest' }}
+    env:
+      AWS_REGION: ${{ inputs.aws-region }}
+    outputs:
+      execution-id: ${{ steps.codepipeline.outputs.execution-id }}
+      platform: ${{ steps.platform.outputs.aft_account }}
+      target-account: ${{ steps.account.outputs.account_number }}
+      skip-workflow: ${{ steps.check-mapping.outputs.skip-pipeline }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Determine platform based on target branch
+        id: platform
+        run: |
+          PLATFORM=$([ "${{ github.ref_name }}" = "master" ] && echo "prod_account_number" || echo "dev_account_number")
+          echo "aft_account=$PLATFORM" >> "$GITHUB_OUTPUT"
+          echo "Platform: $PLATFORM"
+
+      - name: Find changed files
+        id: changes
+        uses: chaunceyyann/cyan-actions/.github/actions/changed-files@v0.1
+        with:
+          pattern: ${{ inputs.file-patterns }}
+
+      - name: Determine account number
+        id: account
+        uses: chaunceyyann/cyan-actions/.github/actions/account-mapping@v0.1
+        with:
+          changed-files: ${{ steps.changes.outputs.files }}
+          environment: ${{ steps.platform.outputs.aft_account }}
+
+      - name: Check if account mapping found
+        id: check-mapping
+        run: |
+          if [ "${{ steps.account.outputs.mapping-found }}" = "false" ]; then
+            echo "No account mapping found for changed files. Skipping entire workflow."
+            echo "skip_pipeline=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "Account mapping found. Proceeding with pipeline trigger."
+            echo "skip_pipeline=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Call AWS AFT CodePipeline Action
+        id: codepipeline
+        if: steps.check-mapping.outputs.skip-pipeline != 'true'
+        uses: chaunceyyann/cyan-actions/.github/actions/run-codepipeline@v0.1
+        with:
+          aws-region: ${{ env.AWS_REGION }}
+          aws-target-account: ${{ steps.account.outputs.account-number }}
+          aws-pipeline-account: ${{ steps.platform.outputs.aft_account }}
+          commit-sha: ${{ github.sha }}
+          aws-access-key-id: ${{ secrets.aws-access-key-id }}
+          aws-secret-access-key: ${{ secrets.aws-secret-access-key }}
+
+  generate-summary:
+    runs-on: ${{ inputs.codebuild-runner != '' && format('codebuild-{0}-{1}-{2}', inputs.codebuild-runner, github.run_id, github.run_attempt) || 'ubuntu-latest' }}
+    needs: trigger-codepipeline
+    if: needs.trigger-codepipeline.outputs.skip-workflow != 'true' && needs.trigger-codepipeline.outputs.execution-id != 'null' && needs.trigger-codepipeline.outputs.execution-id != ''
+    env:
+      AWS_REGION: ${{ inputs.aws-region }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Check for sensitive keywords
+        id: keyword-check
+        uses: chaunceyyann/cyan-actions/.github/actions/check-keywords@dev
+        with:
+          patterns: ${{ inputs.patterns }}
+          base-ref: "origin/${{ github.base_ref }}"
+
+      - name: Check Pipeline Status
+        id: pipeline-status
+        uses: chaunceyyann/cyan-actions/.github/actions/check-codepipeline@v0.1
+        with:
+          execution-id: ${{ needs.trigger-codepipeline.outputs.execution-id }}
+          pipeline-name: ${{ inputs.pipeline-name }}
+          timeout-minutes: ${{ inputs.timeout-minutes }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Get commit information
+        id: commit-info
+        run: |
+          COMMIT_MSG=$(git log -1 --pretty=format:"%s")
+          COMMIT_AUTHOR=$(git log -1 --pretty=format:"%an")
+          COMMIT_TIMESTAMP=$(git log -1 --pretty=format:"%aI")
+
+          {
+            echo "commit-message=$COMMIT_MSG"
+            echo "commit-author=$COMMIT_AUTHOR"
+            echo "commit-timestamp=$COMMIT_TIMESTAMP"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Get PR information
+        id: pr-info
+        env:
+          PR_NUMBER: ${{ github.event.number }}
+          PR_TITLE: ${{ github.event.pull_request.title }}
+          PR_AUTHOR: ${{ github.event.pull_request.user.login }}
+        run: |
+          {
+            echo "pr-number=$PR_NUMBER"
+            echo "pr-title=$PR_TITLE"
+            echo "pr-author=$PR_AUTHOR"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Generate summary
+        run: |
+          # Format timestamps to US Eastern timezone
+          FORMATTED_COMMIT_TIME=$(date -d "${{ steps.commit-info.outputs.commit-timestamp }}" '+%b %d, %Y at %I:%M %p %Z' 2>/dev/null || echo "${{ steps.commit-info.outputs.commit-timestamp }}")
+          FORMATTED_START_TIME=$(date -d "${{ steps.pipeline-status.outputs.start-time }}" '+%b %d, %Y at %I:%M %p %Z' 2>/dev/null || echo "${{ steps.pipeline-status.outputs.start-time }}")
+
+          # Determine status styling based on pipeline status
+          PIPELINE_STATUS="${{ steps.pipeline-status.outputs.status }}"
+          if [ "$PIPELINE_STATUS" = "Succeeded" ]; then
+            STATUS_DISPLAY="✅ **$PIPELINE_STATUS** ✅"
+          elif [ "$PIPELINE_STATUS" = "Failed" ]; then
+            STATUS_DISPLAY="❌ **$PIPELINE_STATUS** ❌"
+          elif [ "$PIPELINE_STATUS" = "InProgress" ]; then
+            STATUS_DISPLAY="⏳ **$PIPELINE_STATUS** ⏳"
+          elif [ "$PIPELINE_STATUS" = "Stopped" ]; then
+            STATUS_DISPLAY="⏹️ **$PIPELINE_STATUS** ⏹️"
+          else
+            STATUS_DISPLAY="🟡 **$PIPELINE_STATUS** 🟡"
+          fi
+
+          # Generate main summary content using cat << EOF
+          cat << EOF >> "$GITHUB_STEP_SUMMARY"
+          ## CodePipeline Execution Summary
+
+                     ### Execution Details
+           | Platform          | ${{ needs.trigger-codepipeline.outputs.platform }} |
+           | Target Account    | ${{ needs.trigger-codepipeline.outputs.target-account }} |
+           | AWS Region        | ${{ env.AWS_REGION }} |
+
+                     ### Pull Request
+           | PR Number         | #${{ steps.pr-info.outputs.pr-number }} |
+           | Title             | ${{ steps.pr-info.outputs.pr-title }} |
+           | Author            | ${{ steps.pr-info.outputs.pr-author }} |
+           | Link              | [View Pull Request](https://github.com/${{ github.repository }}/pull/${{ steps.pr-info.outputs.pr-number }}) |
+
+                     ### Latest Commit
+           | SHA               | \`${{ github.sha }}\` |
+           | Message           | ${{ steps.commit-info.outputs.commit-message }} |
+           | Author            | ${{ steps.commit-info.outputs.commit-author }} |
+           | Timestamp         | $FORMATTED_COMMIT_TIME |
+
+                     ### Code Quality Check
+           | Patterns Checked   | ${{ inputs.patterns }} |
+           | Sensitive Keywords | ${{ steps.keyword-check.outputs.found }} |
+
+          EOF
+
+          # Add keyword findings section if patterns were found
+          if [ "${{ steps.keyword-check.outputs.found }}" = "true" ]; then
+            echo "### 🔍 Sensitive Keywords Found" >> "$GITHUB_STEP_SUMMARY"
+            echo "" >> "$GITHUB_STEP_SUMMARY"
+
+            # Parse the found_lines JSON and display in a readable format
+            FOUND_LINES='${{ steps.keyword-check.outputs.found_lines }}'
+
+            if [ -n "$FOUND_LINES" ] && [ "$FOUND_LINES" != "{}" ]; then
+              echo "$FOUND_LINES" | jq -r 'to_entries[] | "**\(.key):**\n```\n\(.value[])\n```\n"' >> "$GITHUB_STEP_SUMMARY"
+            fi
+          fi
+
+          # Continue with the rest of the summary
+          cat << EOF >> "$GITHUB_STEP_SUMMARY"
+                     ### Pipeline Status
+           | Execution ID      | ${{ needs.trigger-codepipeline.outputs.execution-id }} |
+           | Status            | $STATUS_DISPLAY |
+           | Start Time        | $FORMATTED_START_TIME |
+          EOF
+
+          # Add variables section and pipeline console link
+          {
+            # Add variables section if available (JSON format)
+            if [ -n "${{ steps.pipeline-status.outputs.variables }}" ]; then
+              echo "### Pipeline Variables"
+
+              # Parse JSON and convert to markdown table
+              VARIABLES_JSON="${{ steps.pipeline-status.outputs.variables }}"
+              if echo "$VARIABLES_JSON" | jq -e . >/dev/null 2>&1; then
+                # Valid JSON, convert to markdown table
+                echo "| Variable Name | Value |"
+                echo "|---------------|-------|"
+                echo "$VARIABLES_JSON" | jq -r 'to_entries[] | "| \(.key) | \(.value) |"'
+              else
+                # Not valid JSON, output as text
+                echo "$VARIABLES_JSON"
+              fi
+            fi
+
+            # Add pipeline console link
+            echo "- **Pipeline Console**: [View in AWS Console](https://${{ env.AWS_REGION }}.console.aws.amazon.com/codesuite/codepipeline/pipelines/${{ inputs.pipeline-name }}/executions/${{ needs.trigger-codepipeline.outputs.execution-id }}/view?region=${{ env.AWS_REGION }})"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+
+
+
+      - name: Generate PDF report
+        id: pdf-report
+        if: steps.pipeline-status.outputs.status == 'Succeeded'
+        uses: chaunceyyann/cyan-actions/.github/actions/generate-report@dev
+        with:
+          data: |
+            {
+              "title": "CodePipeline Execution Report",
+              "jira_ticket": "${{ github.event.pull_request.title }}",
+              "repository": "${{ github.repository }}",
+              "pr_information": {
+                "number": "${{ github.event.number }}",
+                "title": "${{ github.event.pull_request.title }}",
+                "author": "${{ github.event.pull_request.user.login }}"
+              },
+              "commit_information": {
+                "sha": "${{ github.sha }}",
+                "message": "${{ steps.commit-info.outputs.commit-message }}",
+                "author": "${{ steps.commit-info.outputs.commit-author }}",
+                "timestamp": "${{ steps.commit-info.outputs.commit-timestamp }}",
+                "branch": "${{ github.ref_name }}",
+                "base_ref": "${{ github.base_ref }}"
+              },
+              "quality_check": {
+                "sensitive_keywords_found": "${{ steps.keyword-check.outputs.found }}",
+                "patterns_checked": "${{ inputs.patterns }}",
+                "found_lines": ${{ steps.keyword-check.outputs.found_lines }}
+              },
+              ${{ steps.keyword-check.outputs.found_lines }},
+              "pipeline_status": {
+                "execution_id": "${{ needs.trigger-codepipeline.outputs.execution-id }}",
+                "status": "${{ steps.pipeline-status.outputs.status }}",
+                "start_time": "${{ steps.pipeline-status.outputs.start-time }}",
+                "platform": "${{ needs.trigger-codepipeline.outputs.platform }}",
+                "target_account": "${{ needs.trigger-codepipeline.outputs.target-account }}",
+                "aws_region": "${{ env.AWS_REGION }}",
+                "variables": "${{ steps.pipeline-status.outputs.variables }}",
+                "console_url": "https://${{ env.AWS_REGION }}.console.aws.amazon.com/codesuite/codepipeline/pipelines/${{ inputs.pipeline-name }}/executions/${{ needs.trigger-codepipeline.outputs.execution-id }}/view?region=${{ env.AWS_REGION }}"
+              }
+            }
+          data-type: "json"
+          output-filename: "pipeline-execution-report-${{ github.run_id }}"
+
+      - name: Upload PDF report
+        if: steps.pipeline-status.outputs.status == 'Succeeded'
+        uses: actions/upload-artifact@v4
+        with:
+          name: pipeline-execution-report-${{ github.run_id }}
+          path: ${{ steps.pdf-report.outputs.report-path }}
+          retention-days: 30

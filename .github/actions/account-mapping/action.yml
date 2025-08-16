@@ -9,17 +9,27 @@ inputs:
     required: true
 outputs:
   account-number:
-    description: 'Determined AWS account number'
+    description: 'Determined AWS account number or SKIP if no mapping found'
     value: ${{ steps.account.outputs.account_number }}
+  mapping-found:
+    description: 'Whether a valid mapping was found (true/false)'
+    value: ${{ steps.account.outputs.mapping_found }}
 runs:
   using: 'composite'
   steps:
     - name: Determine account number using Python
       id: account
       run: |
-        # Ensure we're in the action directory
-        cd "$(dirname "$0")"
-        python3 map_accounts.py
+        # Get the action directory path
+        ACTION_DIR="$GITHUB_ACTION_PATH"
+        cd "$ACTION_DIR"
+
+        # Run the Python script and capture the account_number output
+        ACCOUNT_OUTPUT=$(python3 map_accounts.py | grep "account_number=" | cut -d'=' -f2)
+        MAPPING_OUTPUT=$(python3 map_accounts.py | grep "mapping_found=" | cut -d'=' -f2)
+
+        echo "account_number=$ACCOUNT_OUTPUT" >> $GITHUB_OUTPUT
+        echo "mapping_found=$MAPPING_OUTPUT" >> $GITHUB_OUTPUT
       env:
         CHANGED_FILES: ${{ inputs.changed-files }}
         ENVIRONMENT: ${{ inputs.environment }}

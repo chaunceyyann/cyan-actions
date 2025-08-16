@@ -86,33 +86,38 @@ def main():
 
     if not account_types:
         print(
-            f"Error: No matching directory found in changed files. \
-                Found directories: {directories}",
+            f"No matching directory found in changed files. "
+            f"Found directories: {directories}",
             file=sys.stderr,
         )
-        sys.exit(1)
+        print("Skipping workflow - no account mapping available", file=sys.stderr)
+        # Return a special value to indicate no mapping found
+        print("account_number=SKIP")
+        print("mapping_found=false")
+        return
 
     # Get account numbers from mapping
     if environment not in account_mappings:
         print(f"Error: Unknown environment '{environment}'", file=sys.stderr)
         sys.exit(1)
 
-    account_numbers = []
+    account_numbers = set()
     for account_type in account_types:
         if account_type not in account_mappings[environment]:
             print(
-                f"Error: Unknown account type '{account_type}' \
-                    for environment '{environment}'",
+                f"Error: Unknown account type '{account_type}' "
+                f"for environment '{environment}'",
                 file=sys.stderr,
             )
             sys.exit(1)
-        account_numbers.append(account_mappings[environment][account_type])
+        account_numbers.add(account_mappings[environment][account_type])
 
     # Join multiple account numbers with comma (or choose one based on priority)
     account_number = ",".join(account_numbers)
 
     # Output for GitHub Actions
     print(f"account_number={account_number}")
+    print("mapping_found=true")
     print(f"Environment: {environment}", file=sys.stderr)
     print(f"Changed files: {changed_files}", file=sys.stderr)
     print(f"Directories found: {directories}", file=sys.stderr)

@@ -1,0 +1,10 @@
+# Testing dependencies for generate-report action
+
+# Runtime dependencies (required for tests to work)
+reportlab>=4.0.0
+grip>=4.6.0
+
+# Testing framework dependencies
+coverage>=7.0.0
+pytest>=7.0.0
+pytest-cov>=4.0.0

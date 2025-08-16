@@ -18,24 +18,52 @@ runs:
       run: |
         if [[ "$GITHUB_EVENT_NAME" == "pull_request" ]]; then
           BASE_REF="${{ github.base_ref }}"
-          echo "[Info] PR detected, base ref: $BASE_REF"
+          HEAD_REF="${{ github.pull_request.head.ref }}"
 
-          # Fetch the base branch
+          # Handle case where HEAD_REF might be empty in reusable workflows
+          if [[ -z "$HEAD_REF" ]]; then
+            echo "[Warning] HEAD_REF is empty, trying to get current branch"
+            HEAD_REF=$(git branch --show-current 2>/dev/null || echo "")
+            if [[ -z "$HEAD_REF" ]]; then
+              echo "[Warning] Could not determine HEAD_REF, using HEAD"
+              HEAD_REF="HEAD"
+            fi
+          fi
+
+          echo "[Info] PR detected, base ref: $BASE_REF, head ref: $HEAD_REF"
+
+          # Fetch both base and head branches
           git fetch origin "$BASE_REF" || {
             echo "[Error] Failed to fetch origin/$BASE_REF"
             echo "files=" >> $GITHUB_OUTPUT
             exit 0
           }
 
-          # Try to get changed files using merge base
-          FILES=$(git diff --name-only "origin/$BASE_REF...HEAD" 2>/dev/null || echo "")
+          # Try to get changed files using explicit PR head reference
+          if [[ "$HEAD_REF" == "HEAD" ]]; then
+            # Use current HEAD if we couldn't determine the branch
+            FILES=$(git diff --name-only "origin/$BASE_REF...HEAD" 2>/dev/null || echo "")
+          else
+            # Fetch the head branch and use it
+            git fetch origin "$HEAD_REF" || {
+              echo "[Warning] Failed to fetch origin/$HEAD_REF, using HEAD"
+              FILES=$(git diff --name-only "origin/$BASE_REF...HEAD" 2>/dev/null || echo "")
+            }
+            if [[ -z "$FILES" ]]; then
+              FILES=$(git diff --name-only "origin/$BASE_REF...origin/$HEAD_REF" 2>/dev/null || echo "")
+            fi
+          fi
 
           if [[ -z "$FILES" ]]; then
-            echo "[Warning] No merge base found between origin/$BASE_REF and HEAD"
+            echo "[Warning] No merge base found between origin/$BASE_REF and $HEAD_REF"
             echo "[Info] Trying alternative approach using git log..."
 
             # Fallback: get files changed in commits not in base branch
-            FILES=$(git log --name-only --pretty=format: "origin/$BASE_REF..HEAD" 2>/dev/null | grep -v "^$" | sort -u || echo "")
+            if [[ "$HEAD_REF" == "HEAD" ]]; then
+              FILES=$(git log --name-only --pretty=format: "origin/$BASE_REF..HEAD" 2>/dev/null | grep -v "^$" | sort -u || echo "")
+            else
+              FILES=$(git log --name-only --pretty=format: "origin/$BASE_REF..origin/$HEAD_REF" 2>/dev/null | grep -v "^$" | sort -u || echo "")
+            fi
 
             if [[ -z "$FILES" ]]; then
               echo "[Warning] Alternative approach also failed, using empty file list"
@@ -52,7 +80,7 @@ runs:
           FILES=$(echo "$FILES" | grep -E "${{ inputs.pattern }}" || true)
         fi
 
-        # Output as space-separated list
-        FILES=$(echo "$FILES" | xargs)
+        # Output as space-separated list (handle empty lines and normalize whitespace)
+        FILES=$(echo "$FILES" | tr '\n' ' ' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//;s/[[:space:]]\+/ /g')
         echo "[Info] Changed files: $FILES"
         echo "files=$FILES" >> $GITHUB_OUTPUT

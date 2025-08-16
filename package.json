@@ -1,0 +1,34 @@
+{
+  "name": "@chaunceyyann/cyan-actions",
+  "version": "1.0.0",
+  "description": "Collection of reusable GitHub Actions and Workflows",
+  "main": "action.yml",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/chaunceyyann/cyan-actions.git"
+  },
+  "keywords": [
+    "github-actions",
+    "github-workflows",
+    "ci-cd",
+    "python",
+    "terraform",
+    "aws"
+  ],
+  "author": "chaunceyyann",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/chaunceyyann/cyan-actions/issues"
+  },
+  "homepage": "https://github.com/chaunceyyann/cyan-actions#readme",
+  "publishConfig": {
+    "registry": "https://npm.pkg.github.com"
+  },
+  "files": [
+    ".github/actions/",
+    ".github/workflows/",
+    "action.yml",
+    "README.md",
+    "LICENSE"
+  ]
+}

@@ -1,0 +1,31 @@
+name: 'Cyan Actions'
+description: 'Collection of reusable GitHub Actions and Workflows'
+author: 'chaunceyyann'
+branding:
+  icon: 'package'
+  color: 'blue'
+
+inputs:
+  workflow:
+    description: 'Workflow to run (e.g., reusable-python-ci, reusable-pre-commit)'
+    required: false
+  action:
+    description: 'Action to run (e.g., changed-files, generate-report, account-mapping)'
+    required: false
+  inputs:
+    description: 'JSON string of inputs for the workflow/action'
+    required: false
+    default: '{}'
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Run workflow
+      if: inputs.workflow
+      uses: ./.github/workflows/${{ inputs.workflow }}.yml
+      with: ${{ fromJSON(inputs.inputs) }}
+
+    - name: Run action
+      if: inputs.action
+      uses: ./.github/actions/${{ inputs.action }}
+      with: ${{ fromJSON(inputs.inputs) }}

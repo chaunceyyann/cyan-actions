@@ -26,13 +26,28 @@ jobs:
           draft: false
           prerelease: false
 
+      - name: Create Release Archive
+        run: |
+          # Create a zip file with the essential files
+          zip -r cyan-actions-${{ github.ref_name }}.zip \
+            .github/actions/ \
+            .github/workflows/ \
+            action.yml \
+            package.json \
+            README.md \
+            LICENSE \
+            examples/ \
+            docs/ \
+            scripts/ \
+            -x "*.pyc" "*.pyo" "__pycache__/*" "*.git*" "*.DS_Store"
+
       - name: Publish to GitHub Packages
         uses: actions/upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ./
+          asset_path: cyan-actions-${{ github.ref_name }}.zip
           asset_name: cyan-actions-${{ github.ref_name }}.zip
           asset_content_type: application/zip
 

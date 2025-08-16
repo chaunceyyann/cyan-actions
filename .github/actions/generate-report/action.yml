@@ -59,14 +59,13 @@ runs:
         export DATA_TYPE="${{ inputs.data-type }}"
         export OUTPUT_FILENAME="${{ inputs.output-filename }}"
 
-        # Choose Python script based on data type
+        # Run the unified report generator script
+        python "$GITHUB_ACTION_PATH/scripts/generate_report.py"
+
+        # Set output based on data type
         if [ "${{ inputs.data-type }}" = "json" ]; then
-          echo "Using ReportLab for JSON to PDF conversion"
-          python "$GITHUB_ACTION_PATH/generate_json_pdf.py"
           echo "report-path=${{ inputs.output-filename }}.pdf" >> $GITHUB_OUTPUT
         elif [ "${{ inputs.data-type }}" = "markdown" ]; then
-          echo "Using Grip for Markdown to HTML conversion"
-          python "$GITHUB_ACTION_PATH/generate_markdown_html.py"
           echo "report-path=${{ inputs.output-filename }}.html" >> $GITHUB_OUTPUT
         else
           echo "Error: Unsupported data type '${{ inputs.data-type }}'. Supported types: json, markdown"

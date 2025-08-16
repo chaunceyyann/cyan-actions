@@ -1,144 +1,144 @@
-# Generate Report Action
+# Report Generator Action
 
-A GitHub Action that generates professional reports from JSON or Markdown data.
+This GitHub Action generates professional reports in both PDF and HTML formats from JSON or Markdown data.
 
 ## Features
 
-- **Two Clear Flows**:
-  - Flow 1: JSON → PDF (using ReportLab)
-  - Flow 2: Markdown → HTML (using Grip)
-- **Conditional Dependencies**: Only installs what's needed
-- **Fast Setup**: ~50% faster than installing all dependencies
-- **Clean Architecture**: Separate files for each format
+- **PDF Generation**: Creates professional PDF reports using ReportLab
+- **HTML Generation**: Generates GitHub-style HTML reports using Grip
+- **Flexible Input**: Supports both JSON and Markdown data formats
+- **Customizable**: Configurable styling and layout options
 
-## Usage
-
-### JSON to PDF
-
-```yaml
-- name: Generate Report
-  uses: ./.github/actions/generate-report
-  with:
-    data: |
-      {
-        "title": "Build Report",
-        "results": {"passed": 42, "failed": 0},
-        "coverage": "95.2%"
-      }
-    data-type: "json"
-    output-filename: "build-report"
-```
-
-### Markdown to HTML
-
-```yaml
-- name: Generate Report
-  uses: ./.github/actions/generate-report
-  with:
-    data: |
-      # Pipeline Report
-      ## Summary
-      This pipeline **successfully** completed all stages.
-
-      ## Test Results
-      | Test Type | Status | Count |
-      |-----------|--------|-------|
-      | Unit Tests | ✅ Passed | 150 |
-      | Integration Tests | ✅ Passed | 25 |
-    data-type: "markdown"
-    output-filename: "pipeline-report"
-```
-
-## Inputs
-
-| Input | Description | Required | Default |
-|-------|-------------|----------|---------|
-| `data` | Data string (JSON or Markdown) | Yes | - |
-| `data-type` | Type of input data (`json` or `markdown`) | No | `json` |
-| `output-filename` | Output filename (without extension) | No | `report` |
-
-## Outputs
-
-| Output | Description |
-|--------|-------------|
-| `report-path` | Path to generated file (`.pdf` for JSON, `.html` for Markdown) |
-
-## Architecture
+## Proposed Directory Structure
 
 ```
 .github/actions/generate-report/
-├── action.yml                    # Main action definition
-├── generate_json_pdf.py          # JSON → PDF (ReportLab)
-├── generate_markdown_html.py     # Markdown → HTML (Grip)
-├── requirements.txt              # Runtime dependencies
-├── test_local.py                 # Local testing script
-├── README.md                    # This file
-└── tests/                       # Test suite
-    ├── __init__.py              # Package initialization
-    ├── test_report_generator.py # Main test suite
-    └── requirements-test.txt    # Testing dependencies
+├── src/
+│   ├── pdf/
+│   │   ├── __init__.py
+│   │   ├── generator.py          # Main PDF generator class
+│   │   ├── config.py             # PDF configuration
+│   │   ├── styles.py             # PDF styling
+│   │   ├── utils.py              # PDF utilities
+│   │   └── table_factory.py      # Table creation
+│   ├── html/
+│   │   ├── __init__.py
+│   │   ├── generator.py          # Main HTML generator class
+│   │   ├── config.py             # HTML configuration
+│   │   └── utils.py              # HTML utilities
+│   └── common/
+│       ├── __init__.py
+│       ├── logging.py            # Shared logging setup
+│       └── utils.py              # Shared utilities
+├── tests/
+│   ├── __init__.py
+│   ├── unit/
+│   │   ├── __init__.py
+│   │   ├── test_pdf_generator.py
+│   │   └── test_html_generator.py
+│   ├── integration/
+│   │   ├── __init__.py
+│   │   └── test_report_generation.py
+│   └── fixtures/
+│       ├── sample_data.json
+│       └── sample_markdown.md
+├── scripts/
+│   ├── test_local.py             # Local testing script
+│   └── generate_report.py        # Main entry point
+├── action.yml                    # GitHub Action definition
+├── requirements.txt              # Dependencies
+└── README.md                     # This file
 ```
 
-## Performance
+## Benefits of New Structure
 
-- **JSON processing**: ~2s setup, ~2MB dependencies
-- **Markdown processing**: ~5s setup, ~5MB dependencies
-- **Conditional installation**: Only installs required packages
+### 1. **Clear Separation of Concerns**
+- PDF and HTML generation are completely separate
+- Each format has its own configuration and utilities
+- Common functionality is shared through the `common` module
 
-## Testing
+### 2. **Consistent Architecture**
+- Both PDF and HTML generators follow similar patterns
+- Object-oriented approach for both formats
+- Consistent configuration and utility patterns
 
-The action includes comprehensive unit tests in the `tests/` directory and a local testing script.
+### 3. **Better Maintainability**
+- Easy to add new report formats (e.g., DOCX, RTF)
+- Clear module boundaries
+- Easier to test individual components
+
+### 4. **Improved Testing**
+- Unit tests for each generator separately
+- Integration tests for complete workflows
+- Test fixtures for consistent test data
+
+### 5. **Scalability**
+- Easy to add new features to either format
+- Clear import paths
+- Modular design supports future extensions
+
+## Current vs Proposed Structure
+
+### Current Issues:
+- Mixed architectural patterns (OOP vs functional)
+- Inconsistent file naming
+- Hard to extend with new formats
+- Testing is scattered
+
+### Proposed Benefits:
+- Consistent object-oriented design
+- Clear module organization
+- Easy to maintain and extend
+- Better test organization
+
+## Migration Plan
+
+1. **Phase 1**: Create new directory structure
+2. **Phase 2**: Refactor HTML generator to match PDF generator pattern
+3. **Phase 3**: Move existing files to new structure
+4. **Phase 4**: Update imports and tests
+5. **Phase 5**: Update documentation
+
+## Usage
+
+### PDF Generation
+```python
+from src.pdf.generator import PDFGenerator
+
+generator = PDFGenerator(data, "output")
+filename = generator.generate()
+```
+
+### HTML Generation
+```python
+from src.html.generator import HTMLGenerator
+
+generator = HTMLGenerator(data, "output")
+filename = generator.generate()
+```
+
+## Development
 
 ### Running Tests
-
 ```bash
-# Run local tests (PDF and HTML generation)
-python test_local.py
+# Unit tests
+python -m pytest tests/unit/
 
-# Run unit tests
+# Integration tests
+python -m pytest tests/integration/
+
+# All tests
 python -m pytest tests/
-
-# Run specific test file
-python -m pytest tests/test_report_generator.py
-
-# Run with coverage report
-python -m pytest tests/ --cov=.
 ```
-
-### Test Structure
-
-```
-tests/
-├── __init__.py                    # Package initialization
-├── test_report_generator.py       # Main test suite
-└── requirements-test.txt          # Testing dependencies
-```
-
-### Test Coverage
-
-The test suite covers:
-- JSON to PDF conversion
-- Markdown to HTML conversion
-- Custom filename handling
-- Error handling (empty/invalid data)
-- File size validation
-- Integration workflows
 
 ### Local Testing
-
-The `test_local.py` script provides a quick way to test both PDF and HTML generation locally:
-- Tests JSON to PDF conversion with sample data
-- Tests Markdown to HTML conversion using the repository README
-- Provides visual feedback on test results
+```bash
+python scripts/test_local.py
+```
 
 ## Dependencies
 
-- **JSON**: ReportLab (lightweight PDF generation)
-- **Markdown**: Grip (GitHub-style HTML rendering)
-
-The action automatically installs only the dependencies needed for the specified data type using inline dependency management in the action.yml file.
-
-### Requirements Files
-
-- `requirements.txt` - Runtime dependencies for the action
-- `tests/requirements-test.txt` - Testing dependencies (includes runtime deps)
+- **PDF Generation**: ReportLab
+- **HTML Generation**: Grip
+- **Testing**: pytest, unittest.mock
+- **Development**: black, mypy

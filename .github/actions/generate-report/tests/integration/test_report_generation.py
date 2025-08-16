@@ -1,110 +1,97 @@
 #!/usr/bin/env python3
 """
-Unit tests for the report generator action.
-Tests both JSON to PDF and Markdown to HTML conversion.
+Integration tests for report generation.
+Tests complete workflows and file generation.
 """
 
 import json
 import os
+import shutil
 import sys
 import tempfile
 import unittest
 
 # Add parent directory to path to import the modules
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.insert(
+    0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+)
+
+from src.html_generator.run import HTMLGenerator, create_html_report  # noqa: E402
 
 # Import after path setup
-from generate_json_pdf import create_pdf_report  # noqa: E402
-from generate_markdown_html import create_html_report  # noqa: E402
+from src.pdf_generator.run import PDFGenerator, create_pdf_report  # noqa: E402
 
 
-class TestReportGenerator(unittest.TestCase):
-    """Test cases for report generation functionality."""
+class TestReportGeneratorIntegration(unittest.TestCase):
+    """Integration tests for the report generator."""
 
     def setUp(self):
         """Set up test fixtures."""
-        # Sample JSON data for testing
+        self.temp_dir = tempfile.mkdtemp()
         self.sample_json = {
-            "title": "Test Pipeline Report",
-            "execution_details": {
-                "start_time": "2024-01-15T10:30:00Z",
-                "end_time": "2024-01-15T10:35:00Z",
-                "duration": "5 minutes",
-                "status": "success",
-            },
-            "commit_information": {
-                "sha": "abc123def456",
-                "message": "Add new feature",
-                "author": "John Doe",
-                "timestamp": "2024-01-15T10:25:00Z",
-            },
-            "quality_checks": {
-                "linting": "passed",
-                "security_scan": "passed",
-                "coverage": "95.2%",
-            },
-            "test_results": [
-                "Unit tests: 150/150 passed",
-                "Integration tests: 25/25 passed",
-                "E2E tests: 10/10 passed",
-            ],
+            "title": "Integration Test Report",
+            "summary": "This is a test of the complete workflow",
+            "results": {"status": "success", "tests": 42},
         }
+        self.sample_markdown = """# Integration Test
 
-        # Sample Markdown data for testing
-        self.sample_markdown = """# Test Markdown Report
+## Summary
+This is a test of the complete workflow.
 
-## Executive Summary
+## Results
+- Status: Success
+- Tests: 42
 
-This is a **test report** generated from *Markdown* content using **Grip** for \
-GitHub-style rendering.
-
-## Test Results
-
-| Test Type | Status | Count |
-|-----------|--------|-------|
-| Unit Tests | ✅ Passed | 150 |
-| Integration Tests | ✅ Passed | 25 |
-| E2E Tests | ✅ Passed | 10 |
-
-## Code Quality
-
-- **Coverage**: 95.2%
-- **Linting**: Passed
-- **Security Scan**: Passed
-- **Performance**: Excellent
-
-## Code Example
-
+## Code
 ```python
-def test_function():
-    print("Hello, World!")
-    return True
+print("Hello, World!")
 ```
-
-## Next Steps
-
-1. Deploy to staging
-2. Run smoke tests
-3. Deploy to production
-4. Monitor performance
-
----
-
-*Report generated on 2024-01-15 using Grip*
 """
 
     def tearDown(self):
         """Clean up after tests."""
+        shutil.rmtree(self.temp_dir)
+
         # Clean up any generated files
         test_files = [
             "test-report.pdf",
             "test-report.html",
             "test-json-pdf.pdf",
             "test-markdown-html.html",
+            "integration-test.pdf",
+            "integration-test.html",
         ]
         for file in test_files:
             if os.path.exists(file):
                 os.remove(file)
+
+    def test_full_workflow_json(self):
+        """Test complete JSON to PDF workflow."""
+        # Set up environment
+        os.environ["REPORT_DATA"] = json.dumps(self.sample_json)
+        os.environ["DATA_TYPE"] = "json"
+        os.environ["OUTPUT_FILENAME"] = "integration-test"
+
+        # Generate report
+        report_path = create_pdf_report()
+
+        # Verify result
+        self.assertTrue(os.path.exists(report_path))
+        self.assertTrue(report_path.endswith(".pdf"))
+
+    def test_full_workflow_markdown(self):
+        """Test complete Markdown to HTML workflow."""
+        # Set up environment
+        os.environ["REPORT_DATA"] = self.sample_markdown
+        os.environ["DATA_TYPE"] = "markdown"
+        os.environ["OUTPUT_FILENAME"] = "integration-test"
+
+        # Generate report
+        report_path = create_html_report()
+
+        # Verify result
+        self.assertTrue(os.path.exists(report_path))
+        self.assertTrue(report_path.endswith(".html"))
 
     def test_json_pdf_generation(self):
         """Test JSON to PDF conversion."""
@@ -186,7 +173,7 @@ def test_function():
         os.environ["OUTPUT_FILENAME"] = "test-report"
 
         # This should raise an exception for empty markdown
-        with self.assertRaises(SystemExit):
+        with self.assertRaises(ValueError):
             create_html_report()
 
     def test_json_pdf_invalid_json(self):
@@ -225,77 +212,71 @@ def test_function():
         self.assertGreater(html_size, 10240)
 
 
-class TestReportGeneratorIntegration(unittest.TestCase):
-    """Integration tests for the report generator."""
+class TestLocalPDFValidation(unittest.TestCase):
+    """Test class for local PDF validation - kept for manual PDF inspection."""
 
     def setUp(self):
         """Set up test fixtures."""
-        self.temp_dir = tempfile.mkdtemp()
-
-    def tearDown(self):
-        """Clean up after tests."""
-        import shutil
-
-        shutil.rmtree(self.temp_dir)
-
-    def test_full_workflow_json(self):
-        """Test complete JSON to PDF workflow."""
-        sample_data = {
-            "title": "Integration Test Report",
-            "summary": "This is a test of the complete workflow",
-            "results": {"status": "success", "tests": 42},
+        self.sample_json = {
+            "title": "Test Report - Table Styles Comparison",
+            "basic_info": {
+                "project": "Test Project very loooooooooooooooooooooooong name that should test how the PDF generator handles extremely long text in table cells and whether it wraps properly or gets cut off",
+                "version": "1.0.0",
+                "created": "2024-01-15 10:30:00",
+                "status": "Active",
+            },
+            "activities": [
+                "Code review completed",
+                "Tests passed",
+                "Deployment successful",
+            ],
+            "team_members": [
+                {
+                    "name": "John Doe",
+                    "role": "Developer",
+                    "email": "john.doe@example.com",
+                },
+                {
+                    "name": "Jane Smith",
+                    "role": "QA Engineer",
+                    "email": "jane.smith@example.com",
+                },
+                {
+                    "name": "Bob Wilson",
+                    "role": "DevOps",
+                    "email": "bob.wilson@example.com",
+                },
+                {
+                    "name": "Alice Johnson",
+                    "role": "Senior Software Engineer with very loooooooooooooooooooooooong title that should test text wrapping",
+                    "email": "alice.johnson@example.com",
+                },
+            ],
+            "notes": "This is a test report generated locally.",
         }
 
-        # Set up environment
-        os.environ["REPORT_DATA"] = json.dumps(sample_data)
+    def test_local_pdf_generation(self):
+        """Test local PDF generation for manual validation.
+        This test creates a PDF file that can be manually inspected.
+        """
+        # Set up environment variables
+        os.environ["REPORT_DATA"] = json.dumps(self.sample_json)
         os.environ["DATA_TYPE"] = "json"
-        os.environ["OUTPUT_FILENAME"] = "integration-test"
+        os.environ["OUTPUT_FILENAME"] = "test_local_validation"
 
-        # Generate report
+        # Generate PDF
         report_path = create_pdf_report()
 
-        # Verify result
+        # Assertions
         self.assertTrue(os.path.exists(report_path))
         self.assertTrue(report_path.endswith(".pdf"))
+        self.assertGreater(os.path.getsize(report_path), 0)
 
-        # Clean up
-        if os.path.exists(report_path):
-            os.remove(report_path)
-
-    def test_full_workflow_markdown(self):
-        """Test complete Markdown to HTML workflow."""
-        sample_data = """# Integration Test
-
-## Summary
-This is a test of the complete workflow.
-
-## Results
-- Status: Success
-- Tests: 42
-
-## Code
-```python
-print("Hello, World!")
-```
-"""
-
-        # Set up environment
-        os.environ["REPORT_DATA"] = sample_data
-        os.environ["DATA_TYPE"] = "markdown"
-        os.environ["OUTPUT_FILENAME"] = "integration-test"
-
-        # Generate report
-        report_path = create_html_report()
-
-        # Verify result
-        self.assertTrue(os.path.exists(report_path))
-        self.assertTrue(report_path.endswith(".html"))
-
-        # Clean up
-        if os.path.exists(report_path):
-            os.remove(report_path)
+        print(f"\n✅ Local PDF validation file created: {report_path}")
+        print(
+            "   You can manually inspect this file to validate PDF generation quality."
+        )
 
 
 if __name__ == "__main__":
-    # Run tests
     unittest.main(verbosity=2)
